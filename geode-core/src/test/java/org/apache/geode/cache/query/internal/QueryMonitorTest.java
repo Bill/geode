@@ -17,17 +17,22 @@ package org.apache.geode.cache.query.internal;
 import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.geode.internal.cache.InternalCache;
+import org.apache.geode.management.cli.Disabled;
 
 /**
  * although max_execution_time is set as 10ms, the monitor thread can sleep more than the specified
@@ -87,6 +92,102 @@ public class QueryMonitorTest {
     when(query.isCqQuery()).thenReturn(true);
     monitor.monitorQueryThread(mock(Thread.class), query);
     assertThat(monitor.getQueryMonitorThreadCount()).isEqualTo(0);
+  }
+
+  @Ignore
+  @Test
+  public void stopMonitoringInterruptHonored() {
+
+    monitor.monitorQueryThread(mock(Thread.class), mock(DefaultQuery.class));
+    monitor.stopMonitoring();
+
+  }
+
+  @Ignore
+  @Test
+  public void performance() throws InterruptedException {
+    final QueryMonitor queryMonitor = new QueryMonitor(cache, max_execution_time);
+
+    // we can reuse this because it doesn't affect lookup or equality in the collection(s)
+    final DefaultQuery defaultQuery = mock(DefaultQuery.class);
+    doReturn(new boolean[] {false}).when(defaultQuery).getQueryCompletedForMonitoring();
+
+    final int N = (int) 1e4; // number of queries to monitor
+
+    System.out.println(String.format("Measuring QueryMonitor performance for N=%s queries", N));
+
+    final List<Thread> threads = new ArrayList<>(N);
+    for (int i = 0; i < (int) N; ++i) {
+      threads.add(mock(Thread.class));
+    }
+
+    /*
+     * monitor, then stop monitoring lots o' queries
+     */
+
+    final long insertTime = timing(() -> {
+      monitorQueries(queryMonitor, defaultQuery, threads);
+    });
+    System.out.println("INSERT time:" + insertTime);
+
+    final long removalTime = timing(() -> {
+      stopMonitoringQueries(queryMonitor, defaultQuery, threads);
+    });
+    System.out.println("REMOVE in order time:" + removalTime);
+
+    /*
+     * monitor, then stop monitoring lots o' queries (stop in reverse order)
+     */
+
+    monitorQueries(queryMonitor, defaultQuery, threads);
+
+    final List<Thread> reversedThreads = new ArrayList<>(threads);
+    Collections.reverse(reversedThreads);
+
+    final long removalReverseOrderTime = timing(() -> {
+      stopMonitoringQueries(queryMonitor, defaultQuery, reversedThreads);
+    });
+    System.out.println("REMOVE REVERSED time:" + removalReverseOrderTime);
+
+    /*
+     * monitor, then time out a bunch o' queries
+     */
+    monitorQueries(queryMonitor, defaultQuery, threads);
+
+    /*
+     * wait for queries to expire (default expiration is 5 ms)
+     */
+    Thread.sleep(1000);
+
+    final long timingOutTime = timing(() -> {
+      Thread monitorThread = new Thread(() -> queryMonitor.run(), "query monitor thread");
+      monitorThread.setDaemon(true);
+      monitorThread.start();
+      await("Query monitor failed to process all expired queries")
+          .atMost(2, TimeUnit.MINUTES).until(() -> QueryMonitor.getQueryMonitorThreadCount() == 0);
+      queryMonitor.stopMonitoring();
+    });
+    System.out.println("TIMING OUT time:" + timingOutTime);
+  }
+
+  private void stopMonitoringQueries(QueryMonitor queryMonitor, DefaultQuery defaultQuery,
+                                     List<Thread> threads) {
+    for (final Thread thread : threads) {
+      queryMonitor.stopMonitoringQueryThread(thread, defaultQuery);
+    }
+  }
+
+  private void monitorQueries(QueryMonitor queryMonitor, DefaultQuery defaultQuery,
+                              List<Thread> threads) {
+    for (final Thread thread : threads) {
+      queryMonitor.monitorQueryThread(thread, defaultQuery);
+    }
+  }
+
+  private long timing(final Runnable f) {
+    final long startTime = System.currentTimeMillis();
+    f.run();
+    return System.currentTimeMillis() - startTime;
   }
 
   private Thread createQueryExecutionThread(int i) {

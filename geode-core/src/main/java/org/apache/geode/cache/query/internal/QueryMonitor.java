@@ -14,11 +14,18 @@
  */
 package org.apache.geode.cache.query.internal;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.Logger;
 
+import org.apache.geode.cache.query.Query;
 import org.apache.geode.cache.query.QueryExecutionLowMemoryException;
 import org.apache.geode.cache.query.QueryExecutionTimeoutException;
 import org.apache.geode.internal.cache.InternalCache;
@@ -50,7 +57,7 @@ public class QueryMonitor implements Runnable {
 
   private final long maxQueryExecutionTime;
 
-  private static final ConcurrentLinkedQueue queryThreads = new ConcurrentLinkedQueue();
+  private static final Map<Query,QueryThreadTask> queryThreads = Collections.synchronizedMap(new LinkedHashMap<>());
 
   private Thread monitoringThread;
 
@@ -87,7 +94,7 @@ public class QueryMonitor implements Runnable {
     }
     QueryThreadTask queryTask = new QueryThreadTask(queryThread, query, queryCancelled.get());
     synchronized (queryThreads) {
-      queryThreads.add(queryTask);
+      queryThreads.put(query,queryTask);
       queryThreads.notifyAll();
     }
 
@@ -111,7 +118,7 @@ public class QueryMonitor implements Runnable {
       queryCancelled.get().getAndSet(Boolean.FALSE);
       query.setQueryCompletedForMonitoring(true);
       // Remove the query task from the queue.
-      queryThreads.remove(new QueryThreadTask(queryThread, null, null));
+      queryThreads.remove(query);
     }
 
     if (logger.isDebugEnabled()) {
@@ -167,28 +174,28 @@ public class QueryMonitor implements Runnable {
       this.monitoringThread = Thread.currentThread();
     }
     try {
-      QueryThreadTask queryTask;
-      long sleepTime;
       while (true) {
+        QueryThreadTask queryTask = null;
+
         // Get the first query task from the queue. This query will have the shortest
         // remaining time that needs to canceled first.
-        queryTask = (QueryThreadTask) queryThreads.peek();
-        if (queryTask == null) {
-          synchronized (queryThreads) {
+        synchronized (queryThreads) {
+          if (queryThreads.isEmpty()) {
             queryThreads.wait();
+            continue;
+          } else {
+            queryTask = queryThreads.values().iterator().next();
           }
-          continue;
         }
 
         long executionTime = System.currentTimeMillis() - queryTask.StartTime;
         // Check if the sleepTime is greater than the remaining query execution time.
         if (executionTime < this.maxQueryExecutionTime) {
-          sleepTime = this.maxQueryExecutionTime - executionTime;
           // Its been noted that the sleep is not guaranteed to wait for the specified
           // time (as stated in Suns doc too), it depends on the OSs thread scheduling
           // behavior, hence thread may sleep for longer than the specified time.
           // Specifying shorter time also hasn't worked.
-          Thread.sleep(sleepTime);
+          Thread.sleep(this.maxQueryExecutionTime - executionTime);
           continue;
         }
         // Query execution has taken more than the max time, Set queryCancelled flag
@@ -202,7 +209,7 @@ public class QueryMonitor implements Runnable {
                     this.maxQueryExecutionTime)));
             queryTask.queryCancelled.set(Boolean.TRUE);
             // remove the query threads from monitoring queue
-            queryThreads.poll();
+            queryThreads.remove(queryTask.query);
             logger.info(String.format(
                 "%s is set as canceled after %s milliseconds", queryTask.toString(),
                 executionTime));
@@ -238,13 +245,10 @@ public class QueryMonitor implements Runnable {
 
   public void cancelAllQueriesDueToMemory() {
     synchronized (queryThreads) {
-      QueryThreadTask queryTask = (QueryThreadTask) queryThreads.poll();
-      while (queryTask != null) {
+      for (QueryThreadTask queryTask : queryThreads.values()) {
         cancelQueryDueToLowMemory(queryTask, LOW_MEMORY_USED_BYTES);
-        queryTask = (QueryThreadTask) queryThreads.poll();
       }
       queryThreads.clear();
-      queryThreads.notifyAll();
     }
   }
 
