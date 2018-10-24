@@ -48,7 +48,7 @@ public class MonitorQueryUnderContentionBenchmark {
    * all times in milliseconds
    */
 
-  private static final long QueryMaxExecutionTime = 60;
+  private static final long QueryMaxExecutionTime = 6;
 
   /*
    * Delay, from time startOneSimulatedQuery() is called, until monitorQueryThread() is called.
@@ -60,8 +60,8 @@ public class MonitorQueryUnderContentionBenchmark {
    *
    * We usually want to arrange the two humps equidistant from QueryMaxExecutionTime.
    */
-  private static final int FastQueryCompletionMode = 10;
-  private static final int SlowQueryCompletionMode = 110;
+  private static final int FastQueryCompletionMode = 1;
+  private static final int SlowQueryCompletionMode = 11;
 
   /*
    * How often should we start a query of each type?
@@ -80,7 +80,7 @@ public class MonitorQueryUnderContentionBenchmark {
 
   public static final int TimeToQuiesceBeforeSampling = 10000;
 
-  public static final int THREAD_POOL_PROCESSOR_MULTIPLE = 2;
+  public static final int ThreadPoolProcessorMultiple = 2;
 
 
   public static final int RandomSeed = 151;
@@ -98,15 +98,14 @@ public class MonitorQueryUnderContentionBenchmark {
     monitor = new QueryMonitor(cache, QueryMaxExecutionTime);
     thread = mock(Thread.class);
 
-    final int
-        numberOfThreads =
-        THREAD_POOL_PROCESSOR_MULTIPLE * Runtime.getRuntime().availableProcessors();
+    final int numberOfThreads =
+        ThreadPoolProcessorMultiple * Runtime.getRuntime().availableProcessors();
 
     executorService =
         (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(
             numberOfThreads);
 
-    System.out.println(String.format("Pool has %d threads",numberOfThreads));
+    System.out.println(String.format("Pool has %d threads", numberOfThreads));
 
     executorService.setRemoveOnCancelPolicy(true);
 
@@ -139,8 +138,6 @@ public class MonitorQueryUnderContentionBenchmark {
   @OutputTimeUnit(TimeUnit.MILLISECONDS)
   // @Warmup we don't warm up because our @Setup warms us up
   public void monitorQuery() {
-    System.out.println(
-        "Benchmarking thread, man: " + thread.hashCode() + " time " + System.currentTimeMillis());
     monitor.monitorQueryThread(thread, query);
     monitor.stopMonitoringQueryThread(thread, query);
   }
@@ -184,7 +181,7 @@ public class MonitorQueryUnderContentionBenchmark {
   }
 
   private long gaussianLong(int range) {
-    return (long)(random.nextGaussian() * range);
+    return (long) (random.nextGaussian() * range);
   }
 
   private String querySpeed(int completeDelayRangeMillis) {
