@@ -50,13 +50,40 @@ public class MonitorQueryUnderContentionBenchmark {
 
   private static final long QueryMaxExecutionTime = 60;
 
+  /*
+   * Delay, from time startOneSimulatedQuery() is called, until monitorQueryThread() is called.
+   */
+  public static final int QueryInitialDelay = 0;
+
+  /*
+   * The mode is the center of the "hump" of the Gaussian distribution.
+   *
+   * We usually want to arrange the two humps equidistant from QueryMaxExecutionTime.
+   */
   private static final int FastQueryCompletionMode = 10;
   private static final int SlowQueryCompletionMode = 110;
 
-  private static final int StartFastQueryPeriod = 100;
-  private static final int StartSlowQueryPeriod = 100;
+  /*
+   * How often should we start a query of each type?
+   *
+   * Starting them more frequently leads to heavier load.
+   *
+   * They're separated so we can play with different mixes.
+   */
+  private static final int StartFastQueryPeriod = 1;
+  private static final int StartSlowQueryPeriod = 1;
 
+  /*
+   * After load is established, how many measurements shall we take?
+   */
   private static final double BenchmarkIterations = 1e4;
+
+  public static final int TimeToQuiesceBeforeSampling = 10000;
+
+  public static final int THREAD_POOL_PROCESSOR_MULTIPLE = 2;
+
+
+  public static final int RandomSeed = 151;
 
   private QueryMonitor monitor;
   private Thread thread;
@@ -71,15 +98,21 @@ public class MonitorQueryUnderContentionBenchmark {
     monitor = new QueryMonitor(cache, QueryMaxExecutionTime);
     thread = mock(Thread.class);
 
+    final int
+        numberOfThreads =
+        THREAD_POOL_PROCESSOR_MULTIPLE * Runtime.getRuntime().availableProcessors();
+
     executorService =
         (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(
-            Runtime.getRuntime().availableProcessors());
+            numberOfThreads);
+
+    System.out.println(String.format("Pool has %d threads",numberOfThreads));
 
     executorService.setRemoveOnCancelPolicy(true);
 
     startMonitor(executorService);
 
-    random = new Random(151);
+    random = new Random(RandomSeed);
 
     query = createDefaultQuery();
 
@@ -90,7 +123,7 @@ public class MonitorQueryUnderContentionBenchmark {
         StartSlowQueryPeriod);
 
     // allow system to quiesce
-    Thread.sleep(10000);
+    Thread.sleep(TimeToQuiesceBeforeSampling);
   }
 
   @TearDown(Level.Trial)
@@ -98,11 +131,6 @@ public class MonitorQueryUnderContentionBenchmark {
     System.out.println("tearing down with " + executorService.getQueue().size() + "tasks queued");
     executorService.shutdownNow(); // we mean it!
     executorService.awaitTermination(60, TimeUnit.SECONDS);
-  }
-
-  @TearDown(Level.Iteration)
-  public void iterationTeardown() {
-    monitor.stopMonitoringQueryThread(thread, query);
   }
 
   @Benchmark
@@ -114,6 +142,7 @@ public class MonitorQueryUnderContentionBenchmark {
     System.out.println(
         "Benchmarking thread, man: " + thread.hashCode() + " time " + System.currentTimeMillis());
     monitor.monitorQueryThread(thread, query);
+    monitor.stopMonitoringQueryThread(thread, query);
   }
 
   private ScheduledFuture<?> generateLoad(final ScheduledExecutorService executorService,
@@ -121,7 +150,7 @@ public class MonitorQueryUnderContentionBenchmark {
     return executorService.scheduleAtFixedRate(() -> {
       queryStarter.run();
     },
-        0,
+        QueryInitialDelay,
         startPeriod,
         TimeUnit.MILLISECONDS);
   }
@@ -147,11 +176,15 @@ public class MonitorQueryUnderContentionBenchmark {
             + " thread: " + thread.hashCode() + " time " + System.currentTimeMillis());
         monitor.stopMonitoringQueryThread(thread, query);
       },
-          random.nextInt(completeDelayRangeMillis),
+          gaussianLong(completeDelayRangeMillis),
           TimeUnit.MILLISECONDS);
     },
-        random.nextInt(startDelayRangeMillis),
+        gaussianLong(startDelayRangeMillis),
         TimeUnit.MILLISECONDS);
+  }
+
+  private long gaussianLong(int range) {
+    return (long)(random.nextGaussian() * range);
   }
 
   private String querySpeed(int completeDelayRangeMillis) {
