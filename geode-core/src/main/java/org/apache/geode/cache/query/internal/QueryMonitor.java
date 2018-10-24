@@ -15,12 +15,8 @@
 package org.apache.geode.cache.query.internal;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.Logger;
@@ -57,7 +53,8 @@ public class QueryMonitor implements Runnable {
 
   private final long maxQueryExecutionTime;
 
-  private static final Map<Query,QueryThreadTask> queryThreads = Collections.synchronizedMap(new LinkedHashMap<>());
+  private static final Map<Query, QueryThreadTask> queryThreads =
+      Collections.synchronizedMap(new LinkedHashMap<>());
 
   private Thread monitoringThread;
 
@@ -94,7 +91,7 @@ public class QueryMonitor implements Runnable {
     }
     QueryThreadTask queryTask = new QueryThreadTask(queryThread, query, queryCancelled.get());
     synchronized (queryThreads) {
-      queryThreads.put(query,queryTask);
+      queryThreads.put(query, queryTask);
       queryThreads.notifyAll();
     }
 
