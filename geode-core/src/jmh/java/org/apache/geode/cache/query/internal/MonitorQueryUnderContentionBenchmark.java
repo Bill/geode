@@ -61,7 +61,7 @@ public class MonitorQueryUnderContentionBenchmark {
    * We usually want to arrange the two humps equidistant from QueryMaxExecutionTime.
    */
   private static final int FastQueryCompletionMode = 1;
-  private static final int SlowQueryCompletionMode = 11;
+  private static final int SlowQueryCompletionMode = 1000000;
 
   /*
    * How often should we start a query of each type?
@@ -78,7 +78,7 @@ public class MonitorQueryUnderContentionBenchmark {
    */
   private static final double BenchmarkIterations = 1e4;
 
-  public static final int TimeToQuiesceBeforeSampling = 10000;
+  public static final int TimeToQuiesceBeforeSampling = 240000;
 
   public static final int ThreadPoolProcessorMultiple = 2;
 
@@ -123,11 +123,12 @@ public class MonitorQueryUnderContentionBenchmark {
 
     // allow system to quiesce
     Thread.sleep(TimeToQuiesceBeforeSampling);
+
+    System.out.println("Queries in flight prior to test: " + executorService.getQueue().size());
   }
 
   @TearDown(Level.Trial)
   public void trialTeardown() throws InterruptedException {
-    System.out.println("tearing down with " + executorService.getQueue().size() + "tasks queued");
     executorService.shutdownNow(); // we mean it!
     executorService.awaitTermination(60, TimeUnit.SECONDS);
   }
@@ -143,10 +144,10 @@ public class MonitorQueryUnderContentionBenchmark {
   }
 
   private ScheduledFuture<?> generateLoad(final ScheduledExecutorService executorService,
-                                          final Runnable queryStarter, int startPeriod) {
+      final Runnable queryStarter, int startPeriod) {
     return executorService.scheduleAtFixedRate(() -> {
-          queryStarter.run();
-        },
+      queryStarter.run();
+    },
         QueryInitialDelay,
         startPeriod,
         TimeUnit.MILLISECONDS);
@@ -161,21 +162,17 @@ public class MonitorQueryUnderContentionBenchmark {
   }
 
   private void startOneSimulatedQuery(ScheduledExecutorService executorService,
-                                      int startDelayRangeMillis, int completeDelayRangeMillis) {
+      int startDelayRangeMillis, int completeDelayRangeMillis) {
     executorService.schedule(() -> {
-          final Thread thread = mock(Thread.class);
-          final DefaultQuery query = createDefaultQuery();
-          System.out.println("Monitoring " + querySpeed(completeDelayRangeMillis) + " thread: "
-              + thread.hashCode() + " time " + System.currentTimeMillis());
-          monitor.monitorQueryThread(thread, query);
-          executorService.schedule(() -> {
-                System.out.println("Stopped monitoring " + querySpeed(completeDelayRangeMillis)
-                    + " thread: " + thread.hashCode() + " time " + System.currentTimeMillis());
-                monitor.stopMonitoringQueryThread(thread, query);
-              },
-              gaussianLong(completeDelayRangeMillis),
-              TimeUnit.MILLISECONDS);
-        },
+      final Thread thread = mock(Thread.class);
+      final DefaultQuery query = createDefaultQuery();
+      monitor.monitorQueryThread(thread, query);
+      executorService.schedule(() -> {
+        monitor.stopMonitoringQueryThread(thread, query);
+      },
+          gaussianLong(completeDelayRangeMillis),
+          TimeUnit.MILLISECONDS);
+    },
         gaussianLong(startDelayRangeMillis),
         TimeUnit.MILLISECONDS);
   }
