@@ -18,11 +18,13 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.function.Function;
 
 import org.apache.geode.DataSerializer;
 import org.apache.geode.GemFireConfigException;
 import org.apache.geode.InternalGemFireError;
 import org.apache.geode.cache.UnsupportedVersionException;
+import org.apache.geode.cache.client.ServerConnectivityException;
 import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.DurableClientAttributes;
 import org.apache.geode.distributed.Role;
@@ -80,6 +82,19 @@ public class InternalDistributedMember implements DistributedMember, Externaliza
 
   /** product version bit flag */
   private static final int VERSION_BIT = 0x8;
+
+  @FunctionalInterface
+  public interface HostnameResolver {
+    InetAddress getInetAddress(ServerLocation location) throws UnknownHostException;
+  }
+
+  public static void setHostnameResolver(final HostnameResolver hostnameResolver) {
+    InternalDistributedMember.hostnameResolver = hostnameResolver;
+  }
+
+  /** Retrieves an InetAddress given the provided hostname */
+  private static HostnameResolver hostnameResolver =
+      (location) -> InetAddress.getByName(location.getHostName());
 
   /**
    * Representing the host name of this member.
@@ -201,12 +216,13 @@ public class InternalDistributedMember implements DistributedMember, Externaliza
 
   public InternalDistributedMember(ServerLocation location) {
     this.hostName = location.getHostName();
-    InetAddress addr = null;
+    final InetAddress addr;
     try {
-      addr = InetAddress.getByName(this.hostName);
+      addr = hostnameResolver.getInetAddress(location);
     } catch (UnknownHostException e) {
-      throw new GemFireConfigException("Unable to resolve server location " + location, e);
+      throw new ServerConnectivityException("Unable to resolve server location " + location, e);
     }
+
     netMbr = MemberFactory.newNetMember(addr, location.getPort());
     netMbr.setVmKind(ClusterDistributionManager.NORMAL_DM_TYPE);
     versionObj = Version.CURRENT;
