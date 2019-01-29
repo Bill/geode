@@ -335,6 +335,10 @@ public abstract class PartitionMessage extends DistributionMessage
             sendReply = operateOnPartitionedRegion(dm, pr, startTime);
             tx.updateProxyServer(this.getSender());
           } else {
+            /*
+             * This can occur when processing an in-flight message after the transaction has
+             * been failed over and committed.
+             */
             throw new TransactionException("transactional operation elided because transaction {"
                 + tx.getTxId() + "} is closed");
           }
