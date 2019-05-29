@@ -29,8 +29,6 @@ import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import junitparams.naming.TestCaseName;
 import org.apache.logging.log4j.Logger;
-import org.awaitility.Awaitility;
-import org.awaitility.core.ConditionTimeoutException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -85,7 +83,9 @@ public class FunctionRetryDUnitTest implements Serializable {
   }
 
   private enum ExecutionTarget {
-    REGION, SERVER, REGION_WITH_FILTER_1_KEY /*SERVERS, MEMBER, MEMBERS, REGION_WITH_FILTER_2_KEYS*/
+    REGION, SERVER, REGION_WITH_FILTER_1_KEY /*
+                                              * SERVERS, MEMBER, MEMBERS, REGION_WITH_FILTER_2_KEYS
+                                              */
   }
 
   private enum FunctionIdentifierType {
@@ -147,10 +147,10 @@ public class FunctionRetryDUnitTest implements Serializable {
   })
   @TestCaseName("[{index}] {method}: {params}")
   public void testOnServer(final HAStatus haStatus,
-                           final ClientMetadataStatus clientMetadataStatus,
-                           final FunctionIdentifierType functionIdentifierType,
-                           final int retryAttempts,
-                           final int expectedCalls) throws Exception {
+      final ClientMetadataStatus clientMetadataStatus,
+      final FunctionIdentifierType functionIdentifierType,
+      final int retryAttempts,
+      final int expectedCalls) throws Exception {
     testAny(haStatus,
         clientMetadataStatus,
         ExecutionTarget.SERVER,
@@ -356,9 +356,11 @@ public class FunctionRetryDUnitTest implements Serializable {
         try {
           GeodeAwaitility.await("Awaiting functionStats.getFunctionExecutionsRunning().isZero()")
               .atMost(30 * 4, TimeUnit.SECONDS)
-              .untilAsserted(() -> assertThat(functionStats.getFunctionExecutionsRunning()).isZero());
+              .untilAsserted(
+                  () -> assertThat(functionStats.getFunctionExecutionsRunning()).isZero());
         } catch (final Exception e) {
-          logger.info("#### numExecutions after timeout: " + functionStats.getFunctionExecutionCalls());
+          logger.info(
+              "#### numExecutions after timeout: " + functionStats.getFunctionExecutionCalls());
           throw e;
         }
 
