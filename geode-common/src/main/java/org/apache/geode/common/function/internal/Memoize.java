@@ -22,12 +22,7 @@ public class Memoize {
    */
   @SuppressWarnings("unchecked")
   public static <T> Supplier<T> memoizeNotThreadSafe(final Supplier<T> delegate) {
-    /*
-     * There is, unfortunately, no Java syntax to statically initialize this single-element
-     * generic array. So we construct it and then initialize it on the next line.
-     */
-    final T[] cache = (T[]) new Object[1];
-    cache[0] = (T) UNSET;
-    return () -> cache[0] == UNSET ? cache[0] = delegate.get() : cache[0];
+    final Object[] cache = {UNSET};
+    return () -> cache[0] == UNSET ? (T)(cache[0] = delegate.get()) : (T)cache[0];
   }
 }
