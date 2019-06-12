@@ -38,7 +38,7 @@ import org.junit.Test;
 import org.apache.geode.CancelCriterion;
 import org.apache.geode.distributed.internal.locks.ElderState;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
-import org.apache.geode.distributed.internal.membership.MembershipManager;
+import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
 import org.apache.geode.test.junit.rules.ConcurrencyRule;
 
 public class ClusterElderManagerTest {

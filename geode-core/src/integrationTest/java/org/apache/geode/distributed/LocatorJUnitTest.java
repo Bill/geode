@@ -51,7 +51,7 @@ import org.apache.geode.SystemConnectException;
 import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.InternalLocator;
 import org.apache.geode.distributed.internal.ServerLocation;
-import org.apache.geode.distributed.internal.membership.gms.messenger.JGroupsMessenger;
+import org.apache.geode.distributed.internal.membership.implementation.gms.messenger.JGroupsMessenger;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.internal.OSProcess;

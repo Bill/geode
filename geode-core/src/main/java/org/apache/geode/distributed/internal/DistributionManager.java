@@ -30,7 +30,7 @@ import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.Role;
 import org.apache.geode.distributed.internal.locks.ElderState;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
-import org.apache.geode.distributed.internal.membership.MembershipManager;
+import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
 import org.apache.geode.internal.Version;
 import org.apache.geode.internal.alerting.AlertingService;
 import org.apache.geode.internal.cache.InternalCache;

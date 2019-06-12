@@ -29,7 +29,7 @@ import org.junit.Test;
 
 import org.apache.geode.distributed.internal.InternalDistributedSystem;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
-import org.apache.geode.distributed.internal.membership.gms.Services;
+import org.apache.geode.distributed.internal.membership.implementation.gms.Services;
 import org.apache.geode.internal.admin.GfManagerAgentConfig;
 import org.apache.geode.internal.logging.InternalLogWriter;
 

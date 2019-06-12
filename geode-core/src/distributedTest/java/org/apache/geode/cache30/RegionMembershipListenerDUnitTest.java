@@ -39,7 +39,7 @@ import org.apache.geode.cache.util.RegionMembershipListenerAdapter;
 import org.apache.geode.distributed.ConfigurationProperties;
 import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.internal.DistributionAdvisor.Profile;
-import org.apache.geode.distributed.internal.membership.gms.MembershipManagerHelper;
+import org.apache.geode.distributed.internal.membership.implementation.gms.MembershipManagerHelper;
 import org.apache.geode.internal.cache.CacheDistributionAdvisor.CacheProfile;
 import org.apache.geode.internal.cache.DistributedRegion;
 import org.apache.geode.test.awaitility.GeodeAwaitility;

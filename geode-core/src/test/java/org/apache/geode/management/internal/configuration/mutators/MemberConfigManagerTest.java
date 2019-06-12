@@ -28,7 +28,7 @@ import org.junit.Test;
 import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.internal.DistributionManager;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
-import org.apache.geode.distributed.internal.membership.MembershipManager;
+import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
 import org.apache.geode.internal.cache.InternalCache;
 import org.apache.geode.management.configuration.MemberConfig;
 import org.apache.geode.management.configuration.RuntimeMemberConfig;

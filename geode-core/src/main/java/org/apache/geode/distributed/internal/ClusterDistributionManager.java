@@ -62,12 +62,13 @@ import org.apache.geode.distributed.DistributedSystemDisconnectedException;
 import org.apache.geode.distributed.Locator;
 import org.apache.geode.distributed.Role;
 import org.apache.geode.distributed.internal.locks.ElderState;
-import org.apache.geode.distributed.internal.membership.DistributedMembershipListener;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
-import org.apache.geode.distributed.internal.membership.MemberFactory;
-import org.apache.geode.distributed.internal.membership.MembershipManager;
-import org.apache.geode.distributed.internal.membership.NetView;
-import org.apache.geode.distributed.internal.membership.gms.auth.GMSAuthenticator;
+import org.apache.geode.distributed.internal.membership.adapter.auth.GMSAuthenticator;
+import org.apache.geode.distributed.internal.membership.implementation.DistributedMembershipListener;
+import org.apache.geode.distributed.internal.membership.implementation.MemberFactory;
+import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
+import org.apache.geode.distributed.internal.membership.implementation.NetView;
+import org.apache.geode.distributed.internal.membership.implementation.gms.messages.ViewAckMessage;
 import org.apache.geode.internal.Assert;
 import org.apache.geode.internal.NanoTimer;
 import org.apache.geode.internal.OSProcess;
@@ -243,7 +244,7 @@ public class ClusterDistributionManager implements DistributionManager {
   /**
    * Executor for view related messages
    *
-   * @see org.apache.geode.distributed.internal.membership.gms.messages.ViewAckMessage
+   * @see ViewAckMessage
    */
   public static final int VIEW_EXECUTOR = 79;
 
@@ -418,7 +419,7 @@ public class ClusterDistributionManager implements DistributionManager {
   /**
    * Message processing executor for view messages
    *
-   * @see org.apache.geode.distributed.internal.membership.gms.messages.ViewAckMessage
+   * @see ViewAckMessage
    */
   private ExecutorService viewThread;
 

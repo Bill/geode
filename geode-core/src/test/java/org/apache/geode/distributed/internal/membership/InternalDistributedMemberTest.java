@@ -24,6 +24,7 @@ import java.net.UnknownHostException;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import org.apache.geode.distributed.internal.membership.implementation.NetMember;
 import org.apache.geode.test.junit.categories.MembershipTest;
 
 /**

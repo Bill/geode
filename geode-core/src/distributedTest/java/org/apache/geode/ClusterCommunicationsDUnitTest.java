@@ -73,7 +73,7 @@ import org.apache.geode.distributed.internal.MessageWithReply;
 import org.apache.geode.distributed.internal.ReplyException;
 import org.apache.geode.distributed.internal.ReplyMessage;
 import org.apache.geode.distributed.internal.SerialAckedMessage;
-import org.apache.geode.distributed.internal.membership.gms.membership.GMSJoinLeave;
+import org.apache.geode.distributed.internal.membership.implementation.gms.membership.GMSJoinLeave;
 import org.apache.geode.internal.DSFIDFactory;
 import org.apache.geode.internal.cache.DirectReplyMessage;
 import org.apache.geode.test.dunit.Host;

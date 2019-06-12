@@ -49,7 +49,7 @@ import org.apache.geode.cache.client.internal.locator.ServerLocationRequest;
 import org.apache.geode.cache.client.internal.locator.ServerLocationResponse;
 import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.ServerLocation;
-import org.apache.geode.distributed.internal.membership.gms.membership.HostAddress;
+import org.apache.geode.distributed.internal.membership.implementation.gms.membership.HostAddress;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.cache.tier.sockets.ClientProxyMembershipID;
 import org.apache.geode.internal.logging.LogService;

@@ -25,7 +25,7 @@ import org.apache.geode.cache.client.internal.CacheServerLoadMessage;
 import org.apache.geode.cache.server.ServerLoad;
 import org.apache.geode.cache.server.ServerLoadProbe;
 import org.apache.geode.distributed.internal.ServerLocation;
-import org.apache.geode.distributed.internal.membership.MembershipManager;
+import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
 import org.apache.geode.internal.cache.CacheServerAdvisor;
 import org.apache.geode.internal.cache.tier.CommunicationMode;
 import org.apache.geode.internal.cache.tier.sockets.CacheServerStats;
