@@ -342,6 +342,8 @@ dependencies {
   //copied into it, so it is an API dependency
   api(project(':geode-management'))
 
+  implementation(project(':geode-membership'))
+
   jcaAnnotationProcessor 'org.apache.logging.log4j:log4j-core'
 
   jcaCompile(sourceSets.main.output)
