@@ -22,6 +22,7 @@ import org.apache.geode.distributed.internal.InternalDistributedSystem;
 import org.apache.geode.distributed.internal.LocatorStats;
 import org.apache.geode.distributed.internal.membership.gms.GMSMemberFactory;
 import org.apache.geode.distributed.internal.membership.gms.NetLocator;
+import org.apache.geode.distributed.internal.membership.gms.interfaces.Authenticator;
 import org.apache.geode.internal.admin.remote.RemoteTransportConfig;
 import org.apache.geode.internal.security.SecurityService;
 
@@ -89,8 +90,10 @@ public class MemberFactory {
       InternalDistributedSystem system,
       RemoteTransportConfig transport,
       DMStats stats,
-      SecurityService securityService) {
-    return services.newMembershipManager(listener, system, transport, stats, securityService);
+      SecurityService securityService,
+      final Authenticator authenticator) {
+    return services.newMembershipManager(listener, system, transport, stats, securityService,
+        authenticator);
   }
 
   /**

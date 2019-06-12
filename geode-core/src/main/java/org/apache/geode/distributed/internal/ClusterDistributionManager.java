@@ -67,6 +67,7 @@ import org.apache.geode.distributed.internal.membership.InternalDistributedMembe
 import org.apache.geode.distributed.internal.membership.MemberFactory;
 import org.apache.geode.distributed.internal.membership.MembershipManager;
 import org.apache.geode.distributed.internal.membership.NetView;
+import org.apache.geode.distributed.internal.membership.gms.auth.GMSAuthenticator;
 import org.apache.geode.internal.Assert;
 import org.apache.geode.internal.NanoTimer;
 import org.apache.geode.internal.OSProcess;
@@ -779,7 +780,9 @@ public class ClusterDistributionManager implements DistributionManager {
 
       DMListener l = new DMListener(this);
       membershipManager = MemberFactory.newMembershipManager(l, system, transport,
-          stats, system.getSecurityService());
+          stats, system.getSecurityService(),
+          new GMSAuthenticator(system.getSecurityProperties(), system.getSecurityService(),
+              system.getSecurityLogWriter(), system.getInternalLogWriter()));
 
       sb.append(System.currentTimeMillis() - start);
 

@@ -28,6 +28,7 @@ import org.apache.geode.distributed.internal.membership.MemberAttributes;
 import org.apache.geode.distributed.internal.membership.MemberServices;
 import org.apache.geode.distributed.internal.membership.MembershipManager;
 import org.apache.geode.distributed.internal.membership.NetMember;
+import org.apache.geode.distributed.internal.membership.gms.interfaces.Authenticator;
 import org.apache.geode.distributed.internal.membership.gms.locator.GMSLocator;
 import org.apache.geode.internal.Version;
 import org.apache.geode.internal.admin.remote.RemoteTransportConfig;
@@ -99,8 +100,10 @@ public class GMSMemberFactory implements MemberServices {
   public MembershipManager newMembershipManager(DistributedMembershipListener listener,
       InternalDistributedSystem system,
       RemoteTransportConfig transport, DMStats stats,
-      SecurityService securityService) throws DistributionException {
-    Services services = new Services(listener, system, transport, stats, securityService);
+      SecurityService securityService,
+      final Authenticator authenticator) throws DistributionException {
+    Services services = new Services(listener, system, transport, stats, securityService,
+        authenticator);
     try {
       services.init();
       services.start();

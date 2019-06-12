@@ -19,7 +19,7 @@ import java.util.Properties;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
 import org.apache.geode.security.AuthenticationFailedException;
 
-public interface Authenticator extends Service {
+public interface Authenticator {
 
   String authenticate(InternalDistributedMember m, Properties credentials)
       throws AuthenticationFailedException;

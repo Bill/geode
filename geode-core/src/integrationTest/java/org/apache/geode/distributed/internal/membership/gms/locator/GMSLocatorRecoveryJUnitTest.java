@@ -51,6 +51,7 @@ import org.apache.geode.distributed.internal.membership.DistributedMembershipLis
 import org.apache.geode.distributed.internal.membership.MemberFactory;
 import org.apache.geode.distributed.internal.membership.MembershipManager;
 import org.apache.geode.distributed.internal.membership.NetView;
+import org.apache.geode.distributed.internal.membership.gms.auth.GMSAuthenticator;
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.internal.Version;
 import org.apache.geode.internal.admin.remote.RemoteTransportConfig;
@@ -180,7 +181,9 @@ public class GMSLocatorRecoveryJUnitTest {
       when(mockSystem.getConfig()).thenReturn(config);
       DMStats stats1 = mock(DMStats.class);
       m1 = MemberFactory.newMembershipManager(listener1, mockSystem, transport, stats1,
-          SecurityServiceFactory.create());
+          SecurityServiceFactory.create(),
+          new GMSAuthenticator(mockSystem.getSecurityProperties(), mockSystem.getSecurityService(),
+              mockSystem.getSecurityLogWriter(), mockSystem.getInternalLogWriter()));
 
       GMSLocator l2 = new GMSLocator(SocketCreator.getLocalHost(),
           m1.getLocalMember().getHost() + "[" + port + "]", true, true, new LocatorStats(), "");
