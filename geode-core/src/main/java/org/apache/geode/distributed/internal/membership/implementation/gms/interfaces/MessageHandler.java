@@ -14,7 +14,6 @@
  */
 package org.apache.geode.distributed.internal.membership.implementation.gms.interfaces;
 
-import org.apache.geode.distributed.internal.DistributionMessage;
 
 /**
  * MessageHandler processes a message received by Messenger. Handlers are registered with Messenger

@@ -605,7 +605,8 @@ public class GMSHealthMonitorJUnitTest {
     InternalDistributedMember memberToCheck = gmsHealthMonitor.getNextNeighbor();
     gmsHealthMonitor.memberSuspected(mockMembers.get(0), memberToCheck, "Not responding");
     assertTrue(gmsHealthMonitor.isSuspectMember(memberToCheck));
-    gmsHealthMonitor.processFinalCheckPassedMessage(new FinalCheckPassedMessage(mockMembers.get(0), memberToCheck));
+    gmsHealthMonitor.processFinalCheckPassedMessage(
+        new FinalCheckPassedMessage(mockMembers.get(0), memberToCheck));
     assertFalse(gmsHealthMonitor.isSuspectMember(memberToCheck));
   }
 

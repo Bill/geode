@@ -17,15 +17,9 @@ package org.apache.geode.distributed.internal.membership.implementation.gms.memb
 import static org.apache.geode.distributed.ConfigurationProperties.LOCATORS;
 import static org.apache.geode.distributed.ConfigurationProperties.START_LOCATOR;
 import static org.apache.geode.distributed.internal.membership.implementation.gms.ServiceConfig.MEMBER_REQUEST_COLLECTION_INTERVAL;
-import static org.apache.geode.internal.DataSerializableFixedID.FIND_COORDINATOR_REQ;
-import static org.apache.geode.internal.DataSerializableFixedID.FIND_COORDINATOR_RESP;
-import static org.apache.geode.internal.DataSerializableFixedID.INSTALL_VIEW_MESSAGE;
 import static org.apache.geode.internal.DataSerializableFixedID.JOIN_REQUEST;
-import static org.apache.geode.internal.DataSerializableFixedID.JOIN_RESPONSE;
 import static org.apache.geode.internal.DataSerializableFixedID.LEAVE_REQUEST_MESSAGE;
-import static org.apache.geode.internal.DataSerializableFixedID.NETWORK_PARTITION_MESSAGE;
 import static org.apache.geode.internal.DataSerializableFixedID.REMOVE_MEMBER_REQUEST;
-import static org.apache.geode.internal.DataSerializableFixedID.VIEW_ACK_MESSAGE;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -57,7 +51,6 @@ import org.apache.geode.distributed.Locator;
 import org.apache.geode.distributed.internal.ClusterDistributionManager;
 import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.DistributionMessage;
-import org.apache.geode.distributed.internal.HighPriorityDistributionMessage;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
 import org.apache.geode.distributed.internal.membership.implementation.NetMember;
 import org.apache.geode.distributed.internal.membership.implementation.NetView;
@@ -66,7 +59,6 @@ import org.apache.geode.distributed.internal.membership.implementation.gms.GMSUt
 import org.apache.geode.distributed.internal.membership.implementation.gms.ServiceConfig;
 import org.apache.geode.distributed.internal.membership.implementation.gms.Services;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.JoinLeave;
-import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.MessageHandler;
 import org.apache.geode.distributed.internal.membership.implementation.gms.locator.FindCoordinatorRequest;
 import org.apache.geode.distributed.internal.membership.implementation.gms.locator.FindCoordinatorResponse;
 import org.apache.geode.distributed.internal.membership.implementation.gms.messages.HasMemberID;
@@ -1875,9 +1867,12 @@ public class GMSJoinLeave implements JoinLeave {
     services.getMessenger().addHandler(ViewAckMessage.class, this::processViewAckMessage);
     services.getMessenger().addHandler(LeaveRequestMessage.class, this::processLeaveRequest);
     services.getMessenger().addHandler(RemoveMemberMessage.class, this::processRemoveRequest);
-    services.getMessenger().addHandler(FindCoordinatorRequest.class, this::processFindCoordinatorRequest);
-    services.getMessenger().addHandler(FindCoordinatorResponse.class, this::processFindCoordinatorResponse);
-    services.getMessenger().addHandler(NetworkPartitionMessage.class, this::processNetworkPartitionMessage);
+    services.getMessenger().addHandler(FindCoordinatorRequest.class,
+        this::processFindCoordinatorRequest);
+    services.getMessenger().addHandler(FindCoordinatorResponse.class,
+        this::processFindCoordinatorResponse);
+    services.getMessenger().addHandler(NetworkPartitionMessage.class,
+        this::processNetworkPartitionMessage);
 
     int ackCollectionTimeout = dc.getMemberTimeout() * 2 * 12437 / 10000;
     if (ackCollectionTimeout < 1500) {

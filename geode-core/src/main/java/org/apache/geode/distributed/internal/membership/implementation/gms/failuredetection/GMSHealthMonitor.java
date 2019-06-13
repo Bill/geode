@@ -14,10 +14,6 @@
  */
 package org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection;
 
-import static org.apache.geode.internal.DataSerializableFixedID.FINAL_CHECK_PASSED_MESSAGE;
-import static org.apache.geode.internal.DataSerializableFixedID.HEARTBEAT_REQUEST;
-import static org.apache.geode.internal.DataSerializableFixedID.HEARTBEAT_RESPONSE;
-import static org.apache.geode.internal.DataSerializableFixedID.SUSPECT_MEMBERS_MESSAGE;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -67,7 +63,6 @@ import org.apache.geode.distributed.internal.membership.implementation.gms.GMSMe
 import org.apache.geode.distributed.internal.membership.implementation.gms.ServiceConfig;
 import org.apache.geode.distributed.internal.membership.implementation.gms.Services;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.HealthMonitor;
-import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.MessageHandler;
 import org.apache.geode.distributed.internal.membership.implementation.gms.messages.FinalCheckPassedMessage;
 import org.apache.geode.distributed.internal.membership.implementation.gms.messages.HeartbeatMessage;
 import org.apache.geode.distributed.internal.membership.implementation.gms.messages.HeartbeatRequestMessage;
@@ -927,10 +922,13 @@ public class GMSHealthMonitor implements HealthMonitor {
     memberTimeout = s.getConfig().getMemberTimeout();
     this.stats = services.getStatistics();
 
-    services.getMessenger().addHandler(HeartbeatRequestMessage.class, this::processHeartbeatRequest);
+    services.getMessenger().addHandler(HeartbeatRequestMessage.class,
+        this::processHeartbeatRequest);
     services.getMessenger().addHandler(HeartbeatMessage.class, this::processHeartbeat);
-    services.getMessenger().addHandler(SuspectMembersMessage.class, this::processSuspectMembersRequest);
-    services.getMessenger().addHandler(FinalCheckPassedMessage.class, this::processFinalCheckPassedMessage);
+    services.getMessenger().addHandler(SuspectMembersMessage.class,
+        this::processSuspectMembersRequest);
+    services.getMessenger().addHandler(FinalCheckPassedMessage.class,
+        this::processFinalCheckPassedMessage);
   }
 
   @Override
@@ -1076,7 +1074,7 @@ public class GMSHealthMonitor implements HealthMonitor {
     this.localAddress = idm;
   }
 
-   void processHeartbeatRequest(HeartbeatRequestMessage m) {
+  void processHeartbeatRequest(HeartbeatRequestMessage m) {
     if (isStopping) {
       return;
     }
@@ -1107,7 +1105,7 @@ public class GMSHealthMonitor implements HealthMonitor {
     }
   }
 
-   void processHeartbeat(HeartbeatMessage m) {
+  void processHeartbeat(HeartbeatMessage m) {
     if (isStopping) {
       return;
     }
@@ -1138,7 +1136,7 @@ public class GMSHealthMonitor implements HealthMonitor {
    * membership coordinator. it will to final check on that member and then it will send remove
    * request for that member
    */
-   void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
+  void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
     if (isStopping) {
       return;
     }
