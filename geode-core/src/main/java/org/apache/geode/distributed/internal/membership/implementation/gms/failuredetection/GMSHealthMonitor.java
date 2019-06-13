@@ -398,7 +398,7 @@ public class GMSHealthMonitor implements HealthMonitor {
   public static void loadEmergencyClasses() {}
 
 
-  private void processFinalCheckPassedMessage(FinalCheckPassedMessage m) {
+  void processMessage(FinalCheckPassedMessage m) {
     if (isStopping) {
       return;
     }
@@ -923,12 +923,13 @@ public class GMSHealthMonitor implements HealthMonitor {
     this.stats = services.getStatistics();
 
     services.getMessenger().addHandler(HeartbeatRequestMessage.class,
-        this::processHeartbeatRequest);
-    services.getMessenger().addHandler(HeartbeatMessage.class, this::processHeartbeat);
+        this::processMessage);
+    services.getMessenger().addHandler(HeartbeatMessage.class,
+        this::processMessage);
     services.getMessenger().addHandler(SuspectMembersMessage.class,
-        this::processSuspectMembersRequest);
+        this::processMessage);
     services.getMessenger().addHandler(FinalCheckPassedMessage.class,
-        this::processFinalCheckPassedMessage);
+        this::processMessage);
   }
 
   @Override
@@ -1074,7 +1075,7 @@ public class GMSHealthMonitor implements HealthMonitor {
     this.localAddress = idm;
   }
 
-  void processHeartbeatRequest(HeartbeatRequestMessage m) {
+  void processMessage(HeartbeatRequestMessage m) {
     if (isStopping) {
       return;
     }
@@ -1105,7 +1106,7 @@ public class GMSHealthMonitor implements HealthMonitor {
     }
   }
 
-  void processHeartbeat(HeartbeatMessage m) {
+  void processMessage(HeartbeatMessage m) {
     if (isStopping) {
       return;
     }
@@ -1136,7 +1137,7 @@ public class GMSHealthMonitor implements HealthMonitor {
    * membership coordinator. it will to final check on that member and then it will send remove
    * request for that member
    */
-  void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
+  void processMessage(SuspectMembersMessage incomingRequest) {
     if (isStopping) {
       return;
     }
@@ -1362,7 +1363,7 @@ public class GMSHealthMonitor implements HealthMonitor {
                           .singletonList(new SuspectRequest(mbr, "failed availability check")));
               suspectMembersMessage.setSender(localAddress);
               logger.debug("Performing local processing on suspect request");
-              processSuspectMembersRequest(suspectMembersMessage);
+              processMessage(suspectMembersMessage);
             } else {
               logger.info(
                   "Self-check for availability failed - will not continue to suspect {} for now",

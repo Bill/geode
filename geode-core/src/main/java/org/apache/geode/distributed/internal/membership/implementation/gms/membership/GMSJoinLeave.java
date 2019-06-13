@@ -535,7 +535,7 @@ public class GMSJoinLeave implements JoinLeave {
    *
    * @param incomingRequest the request to be processed
    */
-  private void processJoinRequest(JoinRequestMessage incomingRequest) {
+  void processMessage(JoinRequestMessage incomingRequest) {
     if (isStopping) {
       return;
     }
@@ -578,7 +578,7 @@ public class GMSJoinLeave implements JoinLeave {
    *
    * @param incomingRequest the request to be processed
    */
-  private void processLeaveRequest(LeaveRequestMessage incomingRequest) {
+  void processMessage(LeaveRequestMessage incomingRequest) {
     if (isStopping) {
       return;
     }
@@ -594,7 +594,8 @@ public class GMSJoinLeave implements JoinLeave {
 
     InternalDistributedMember mbr = incomingRequest.getMemberID();
 
-    logger.info(() -> "JoinLeave.processLeaveRequest invoked.  isCoordinator=" + isCoordinator
+    logger.info(() -> "JoinLeave.processMessage(LeaveRequestMessage) invoked.  isCoordinator="
+        + isCoordinator
         + "; isStopping=" + isStopping + "; cancelInProgress="
         + services.getCancelCriterion().isCancelInProgress());
 
@@ -650,7 +651,7 @@ public class GMSJoinLeave implements JoinLeave {
    *
    * @param incomingRequest the request to process
    */
-  private void processRemoveRequest(RemoveMemberMessage incomingRequest) {
+  void processMessage(RemoveMemberMessage incomingRequest) {
     if (isStopping) {
       return;
     }
@@ -1012,7 +1013,7 @@ public class GMSJoinLeave implements JoinLeave {
     }
   }
 
-  private void processViewMessage(final InstallViewMessage m) {
+  void processMessage(final InstallViewMessage m) {
     if (isStopping) {
       return;
     }
@@ -1113,7 +1114,7 @@ public class GMSJoinLeave implements JoinLeave {
     }
   }
 
-  private void processViewAckMessage(ViewAckMessage m) {
+  void processMessage(ViewAckMessage m) {
     if (isStopping) {
       return;
     }
@@ -1391,7 +1392,7 @@ public class GMSJoinLeave implements JoinLeave {
    *
    * @param rsp the response message to process
    */
-  private void processJoinResponse(JoinResponseMessage rsp) {
+  void processMessage(JoinResponseMessage rsp) {
     synchronized (joinResponse) {
       if (!this.isJoined) {
         // 1. our joinRequest rejected.
@@ -1428,7 +1429,7 @@ public class GMSJoinLeave implements JoinLeave {
     joinResponse[0] = jrm;
   }
 
-  private void processFindCoordinatorRequest(FindCoordinatorRequest req) {
+  void processMessage(FindCoordinatorRequest req) {
     if (isStopping) {
       return;
     }
@@ -1446,7 +1447,7 @@ public class GMSJoinLeave implements JoinLeave {
     services.getMessenger().send(resp);
   }
 
-  private void processFindCoordinatorResponse(FindCoordinatorResponse resp) {
+  void processMessage(FindCoordinatorResponse resp) {
     if (isStopping) {
       return;
     }
@@ -1466,7 +1467,7 @@ public class GMSJoinLeave implements JoinLeave {
           response.getCoordinator());
   }
 
-  private void processNetworkPartitionMessage(NetworkPartitionMessage msg) {
+  void processMessage(NetworkPartitionMessage msg) {
     if (isStopping) {
       return;
     }
@@ -1779,7 +1780,7 @@ public class GMSJoinLeave implements JoinLeave {
       RemoveMemberMessage msg =
           new RemoveMemberMessage(v.getPreferredCoordinators(filter, getMemberID(), 5), m, reason);
       msg.setSender(this.localAddress);
-      processRemoveRequest(msg);
+      processMessage(msg);
       if (!this.isCoordinator) {
         msg.resetRecipients();
         msg.setRecipients(v.getPreferredCoordinators(Collections.emptySet(), localAddress,
@@ -1797,7 +1798,7 @@ public class GMSJoinLeave implements JoinLeave {
     LeaveRequestMessage msg = new LeaveRequestMessage(Collections.singleton(this.localAddress),
         (InternalDistributedMember) mbr, reason);
     msg.setSender((InternalDistributedMember) mbr);
-    processLeaveRequest(msg);
+    processMessage(msg);
   }
 
   boolean checkIfAvailable(InternalDistributedMember fmbr) {
@@ -1861,18 +1862,18 @@ public class GMSJoinLeave implements JoinLeave {
           + START_LOCATOR + ".");
     }
 
-    services.getMessenger().addHandler(JoinRequestMessage.class, this::processJoinRequest);
-    services.getMessenger().addHandler(JoinResponseMessage.class, this::processJoinResponse);
-    services.getMessenger().addHandler(InstallViewMessage.class, this::processViewMessage);
-    services.getMessenger().addHandler(ViewAckMessage.class, this::processViewAckMessage);
-    services.getMessenger().addHandler(LeaveRequestMessage.class, this::processLeaveRequest);
-    services.getMessenger().addHandler(RemoveMemberMessage.class, this::processRemoveRequest);
+    services.getMessenger().addHandler(JoinRequestMessage.class, this::processMessage);
+    services.getMessenger().addHandler(JoinResponseMessage.class, this::processMessage);
+    services.getMessenger().addHandler(InstallViewMessage.class, this::processMessage);
+    services.getMessenger().addHandler(ViewAckMessage.class, this::processMessage);
+    services.getMessenger().addHandler(LeaveRequestMessage.class, this::processMessage);
+    services.getMessenger().addHandler(RemoveMemberMessage.class, this::processMessage);
     services.getMessenger().addHandler(FindCoordinatorRequest.class,
-        this::processFindCoordinatorRequest);
+        this::processMessage);
     services.getMessenger().addHandler(FindCoordinatorResponse.class,
-        this::processFindCoordinatorResponse);
+        this::processMessage);
     services.getMessenger().addHandler(NetworkPartitionMessage.class,
-        this::processNetworkPartitionMessage);
+        this::processMessage);
 
     int ackCollectionTimeout = dc.getMemberTimeout() * 2 * 12437 / 10000;
     if (ackCollectionTimeout < 1500) {
