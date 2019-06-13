@@ -59,20 +59,16 @@ public class GMSAuthenticator implements Authenticator {
    * @param credentials the credentials used in authentication
    * @return null if authentication succeed (including no authenticator case), otherwise, return
    *         failure message
-   * @throws AuthenticationFailedException this will be removed since return string is used for
-   *         failure
    */
   @Override
-  public String authenticate(InternalDistributedMember member, Properties credentials)
-      throws AuthenticationFailedException {
+  public String authenticate(InternalDistributedMember member, Properties credentials) {
     return authenticate(member, credentials, this.securityProps);
   }
 
   /**
    * Method is package protected to be used in testing.
    */
-  String authenticate(DistributedMember member, Properties credentials, Properties secProps)
-      throws AuthenticationFailedException {
+  String authenticate(DistributedMember member, Properties credentials, Properties secProps) {
 
     // For older systems, locator might be started without cache, so secureService may not be
     // initialized here. We need to check if the passed in secProps has peer authenticator or not at
