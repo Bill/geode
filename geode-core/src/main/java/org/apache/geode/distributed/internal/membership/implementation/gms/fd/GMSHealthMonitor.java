@@ -402,6 +402,11 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
   @SuppressWarnings("EmptyMethod")
   public static void loadEmergencyClasses() {}
 
+
+  private void processFinalCheckPassedMessage(FinalCheckPassedMessage m) {
+    contactedBy(m.getSuspect());
+  }
+
   /*
    * Record the member activity for current time interval.
    */
@@ -918,10 +923,11 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
     services = s;
     memberTimeout = s.getConfig().getMemberTimeout();
     this.stats = services.getStatistics();
-    services.getMessenger().addHandler(HeartbeatRequestMessage.class, this);
-    services.getMessenger().addHandler(HeartbeatMessage.class, this);
-    services.getMessenger().addHandler(SuspectMembersMessage.class, this);
-    services.getMessenger().addHandler(FinalCheckPassedMessage.class, this);
+
+    services.getMessenger().addHandler(HeartbeatRequestMessage.class, this::processHeartbeatRequest);
+    services.getMessenger().addHandler(HeartbeatMessage.class, this::processHeartbeat);
+    services.getMessenger().addHandler(SuspectMembersMessage.class, this::processSuspectMembersRequest);
+    services.getMessenger().addHandler(FinalCheckPassedMessage.class, this::processFinalCheckPassedMessage);
   }
 
   @Override
@@ -1107,9 +1113,14 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
 
   private void processHeartbeatRequest(HeartbeatRequestMessage m) {
 
+    if (beingSick || playingDead) {
+      logger.debug("sick member is ignoring check request");
+      return;
+    }
+
     this.stats.incHeartbeatRequestsReceived();
 
-    if (this.isStopping || this.playingDead) {
+    if (this.isStopping) {
       return;
     }
 
@@ -1130,6 +1141,12 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
   }
 
   private void processHeartbeat(HeartbeatMessage m) {
+
+    if (beingSick || playingDead) {
+      logger.debug("sick member is ignoring check response");
+      return;
+    }
+
     this.stats.incHeartbeatsReceived();
     if (m.getRequestId() >= 0) {
       Response resp = requestIdVsResponse.get(m.getRequestId());
@@ -1154,6 +1171,11 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
    */
   private void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
 
+    if (beingSick || playingDead) {
+      logger.debug("sick member is ignoring suspect message");
+      return;
+    }
+
     this.stats.incSuspectsReceived();
 
     NetView cv = currentView;
@@ -1175,19 +1197,17 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
     }
 
     // take care of any suspicion of this member by sending a heartbeat back
-    if (!playingDead) {
-      for (Iterator<SuspectRequest> it = incomingRequest.getMembers().iterator(); it.hasNext();) {
-        SuspectRequest req = it.next();
-        if (req.getSuspectMember().equals(localAddress)) {
-          HeartbeatMessage message = new HeartbeatMessage(-1);
-          message.setRecipient(sender);
-          try {
-            services.getMessenger().send(message);
-            this.stats.incHeartbeatsSent();
-            it.remove();
-          } catch (CancelException e) {
-            return;
-          }
+    for (Iterator<SuspectRequest> it = incomingRequest.getMembers().iterator(); it.hasNext();) {
+      SuspectRequest req = it.next();
+      if (req.getSuspectMember().equals(localAddress)) {
+        HeartbeatMessage message = new HeartbeatMessage(-1);
+        message.setRecipient(sender);
+        try {
+          services.getMessenger().send(message);
+          this.stats.incHeartbeatsSent();
+          it.remove();
+        } catch (CancelException e) {
+          return;
         }
       }
     }
