@@ -29,7 +29,7 @@ import org.apache.geode.distributed.internal.membership.InternalDistributedMembe
 import org.apache.geode.distributed.internal.membership.implementation.DistributedMembershipListener;
 import org.apache.geode.distributed.internal.membership.implementation.MembershipManager;
 import org.apache.geode.distributed.internal.membership.implementation.NetView;
-import org.apache.geode.distributed.internal.membership.implementation.gms.fd.GMSHealthMonitor;
+import org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection.GMSHealthMonitor;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.Authenticator;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.HealthMonitor;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.JoinLeave;

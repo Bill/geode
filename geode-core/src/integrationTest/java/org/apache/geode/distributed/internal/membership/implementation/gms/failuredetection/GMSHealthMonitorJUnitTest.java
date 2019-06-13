@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.geode.distributed.internal.membership.implementation.gms.fd;
+package org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection;
 
 import static org.apache.geode.distributed.ConfigurationProperties.ACK_SEVERE_ALERT_THRESHOLD;
 import static org.apache.geode.distributed.ConfigurationProperties.ACK_WAIT_THRESHOLD;
@@ -81,7 +81,7 @@ import org.apache.geode.distributed.internal.membership.implementation.gms.GMSMe
 import org.apache.geode.distributed.internal.membership.implementation.gms.ServiceConfig;
 import org.apache.geode.distributed.internal.membership.implementation.gms.Services;
 import org.apache.geode.distributed.internal.membership.implementation.gms.Services.Stopper;
-import org.apache.geode.distributed.internal.membership.implementation.gms.fd.GMSHealthMonitor.ClientSocketHandler;
+import org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection.GMSHealthMonitor.ClientSocketHandler;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.JoinLeave;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.Manager;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.Messenger;
@@ -191,7 +191,7 @@ public class GMSHealthMonitorJUnitTest {
 
     NetView v = new NetView(mbr, 1, mockMembers);
 
-    gmsHealthMonitor.processMessage(new HeartbeatRequestMessage(mbr, 1));
+    gmsHealthMonitor.processHeartbeatRequest(new HeartbeatRequestMessage(mbr, 1));
     verify(messenger, atLeastOnce()).send(any(HeartbeatMessage.class));
     assertEquals(1, gmsHealthMonitor.getStats().getHeartbeatRequestsReceived());
     assertEquals(1, gmsHealthMonitor.getStats().getHeartbeatsSent());
@@ -364,7 +364,7 @@ public class GMSHealthMonitorJUnitTest {
     SuspectMembersMessage sm = new SuspectMembersMessage(recipient, as);
     sm.setSender(mockMembers.get(0));
 
-    gmsHealthMonitor.processMessage(sm);
+    gmsHealthMonitor.processSuspectMembersRequest(sm);
 
     await("waiting for remove(member) to be invoked").untilAsserted(() -> {
       verify(joinLeave, atLeastOnce()).remove(any(InternalDistributedMember.class),
@@ -398,7 +398,7 @@ public class GMSHealthMonitorJUnitTest {
     sm.setSender(mockMembers.get(0));
 
     long preProcess = System.currentTimeMillis();
-    gmsHealthMonitor.processMessage(sm);
+    gmsHealthMonitor.processSuspectMembersRequest(sm);
 
     await("waiting for remove(member) to be invoked")
         .untilAsserted(
@@ -434,7 +434,7 @@ public class GMSHealthMonitorJUnitTest {
     SuspectMembersMessage sm = new SuspectMembersMessage(recipient, as);
     sm.setSender(mockMembers.get(myAddressIndex + 1));// member 4 sends suspect message
 
-    gmsHealthMonitor.processMessage(sm);
+    gmsHealthMonitor.processSuspectMembersRequest(sm);
 
     await("waiting for remove(member) to be invoked").untilAsserted(
         () -> verify(joinLeave, atLeastOnce()).remove(any(InternalDistributedMember.class),
@@ -472,7 +472,7 @@ public class GMSHealthMonitorJUnitTest {
     when(messenger.send(any(HeartbeatRequestMessage.class))).then(new Answer() {
       @Override
       public Object answer(InvocationOnMock invocation) throws Throwable {
-        gmsHealthMonitor.processMessage(fakeHeartbeat);
+        gmsHealthMonitor.processHeartbeat(fakeHeartbeat);
         return null;
       }
     });
@@ -605,7 +605,7 @@ public class GMSHealthMonitorJUnitTest {
     InternalDistributedMember memberToCheck = gmsHealthMonitor.getNextNeighbor();
     gmsHealthMonitor.memberSuspected(mockMembers.get(0), memberToCheck, "Not responding");
     assertTrue(gmsHealthMonitor.isSuspectMember(memberToCheck));
-    gmsHealthMonitor.processMessage(new FinalCheckPassedMessage(mockMembers.get(0), memberToCheck));
+    gmsHealthMonitor.processFinalCheckPassedMessage(new FinalCheckPassedMessage(mockMembers.get(0), memberToCheck));
     assertFalse(gmsHealthMonitor.isSuspectMember(memberToCheck));
   }
 
@@ -804,13 +804,13 @@ public class GMSHealthMonitorJUnitTest {
     // a sick member will not respond to a heartbeat request
     HeartbeatRequestMessage req = new HeartbeatRequestMessage(mockMembers.get(0), 10);
     req.setSender(mockMembers.get(0));
-    gmsHealthMonitor.processMessage(req);
+    gmsHealthMonitor.processHeartbeatRequest(req);
     verify(messenger, never()).send(isA(HeartbeatMessage.class));
 
     // a sick member will not record a heartbeat from another member
     HeartbeatMessage hb = new HeartbeatMessage(-1);
     hb.setSender(mockMembers.get(0));
-    gmsHealthMonitor.processMessage(hb);
+    gmsHealthMonitor.processHeartbeat(hb);
     assertTrue(gmsHealthMonitor.memberTimeStamps.get(hb.getSender()) == null);
 
     // a sick member will not take action on a Suspect message from another member
@@ -819,7 +819,7 @@ public class GMSHealthMonitorJUnitTest {
     when(smm.getMembers()).thenThrow(err);
     when(smm.getSender()).thenThrow(err);
     when(smm.getDSFID()).thenCallRealMethod();
-    gmsHealthMonitor.processMessage(smm);
+    gmsHealthMonitor.processSuspectMembersRequest(smm);
   }
 
   @Test
@@ -947,7 +947,7 @@ public class GMSHealthMonitorJUnitTest {
         if (simulateHeartbeatInGMSHealthMonitorTestClass) {
           HeartbeatMessage fakeHeartbeat = new HeartbeatMessage();
           fakeHeartbeat.setSender(suspectMember);
-          gmsHealthMonitor.processMessage(fakeHeartbeat);
+          gmsHealthMonitor.processHeartbeat(fakeHeartbeat);
         }
         if (allowSelfCheckToSucceed && suspectMember.equals(joinLeave.getMemberID())) {
           return true;

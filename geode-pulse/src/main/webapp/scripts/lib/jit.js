@@ -14658,8 +14658,8 @@ $jit.ForceDirected = new Class( {
   In this example I calculate the end positions and then animate the graph to those positions
   
   (start code js)
-  var fd = new $jit.ForceDirected(...);
-  fd.computeIncremental({
+  var failuredetection = new $jit.ForceDirected(...);
+  failuredetection.computeIncremental({
     iter: 20,
     property: 'end',
     onStep: function(perc) {
@@ -14667,7 +14667,7 @@ $jit.ForceDirected = new Class( {
     },
     onComplete: function() {
       Log.write("done");
-      fd.animate();
+      failuredetection.animate();
     }
   });
   (end code)
@@ -14675,8 +14675,8 @@ $jit.ForceDirected = new Class( {
   In this example I calculate all positions and (re)plot the graph
   
   (start code js)
-  var fd = new ForceDirected(...);
-  fd.computeIncremental({
+  var failuredetection = new ForceDirected(...);
+  failuredetection.computeIncremental({
     iter: 20,
     property: ['end', 'start', 'current'],
     onStep: function(perc) {
@@ -14684,7 +14684,7 @@ $jit.ForceDirected = new Class( {
     },
     onComplete: function() {
       Log.write("done");
-      fd.plot();
+      failuredetection.plot();
     }
   });
   (end code)

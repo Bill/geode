@@ -546,7 +546,7 @@ public class NetView implements DataSerializableFixedID {
         first = false;
       }
     }
-    // sb.append("] fd ports: [");
+    // sb.append("] failuredetection ports: [");
     // int[] ports = getFailureDetectionPorts();
     // int numMembers = size();
     // for (int i=0; i<numMembers; i++) {

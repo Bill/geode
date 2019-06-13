@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.geode.distributed.internal.membership.implementation.gms.fd;
+package org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection;
 
 import static org.apache.geode.internal.DataSerializableFixedID.FINAL_CHECK_PASSED_MESSAGE;
 import static org.apache.geode.internal.DataSerializableFixedID.HEARTBEAT_REQUEST;
@@ -97,7 +97,7 @@ import org.apache.geode.internal.security.SecurableCommunicationChannel;
  * alive. Then based on removal flag it initiates the suspect processing for that member.
  */
 @SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter", "NullableProblems"})
-public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
+public class GMSHealthMonitor implements HealthMonitor {
 
   private Services services;
   private volatile NetView currentView;
@@ -404,6 +404,9 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
 
 
   private void processFinalCheckPassedMessage(FinalCheckPassedMessage m) {
+    if (isStopping) {
+      return;
+    }
     contactedBy(m.getSuspect());
   }
 
@@ -1073,46 +1076,10 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
     this.localAddress = idm;
   }
 
-  @Override
-  public void processMessage(DistributionMessage m) {
+   void processHeartbeatRequest(HeartbeatRequestMessage m) {
     if (isStopping) {
       return;
     }
-
-    logger.trace("processing {}", m);
-
-    switch (m.getDSFID()) {
-      case HEARTBEAT_REQUEST:
-        if (beingSick || playingDead) {
-          logger.debug("sick member is ignoring check request");
-        } else {
-          processHeartbeatRequest((HeartbeatRequestMessage) m);
-        }
-        break;
-      case HEARTBEAT_RESPONSE:
-        if (beingSick || playingDead) {
-          logger.debug("sick member is ignoring check response");
-        } else {
-          processHeartbeat((HeartbeatMessage) m);
-        }
-        break;
-      case SUSPECT_MEMBERS_MESSAGE:
-        if (beingSick || playingDead) {
-          logger.debug("sick member is ignoring suspect message");
-        } else {
-          processSuspectMembersRequest((SuspectMembersMessage) m);
-        }
-        break;
-      case FINAL_CHECK_PASSED_MESSAGE:
-        contactedBy(((FinalCheckPassedMessage) m).getSuspect());
-        break;
-      default:
-        throw new IllegalArgumentException("unknown message type: " + m);
-    }
-  }
-
-  private void processHeartbeatRequest(HeartbeatRequestMessage m) {
-
     if (beingSick || playingDead) {
       logger.debug("sick member is ignoring check request");
       return;
@@ -1140,8 +1107,10 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
     }
   }
 
-  private void processHeartbeat(HeartbeatMessage m) {
-
+   void processHeartbeat(HeartbeatMessage m) {
+    if (isStopping) {
+      return;
+    }
     if (beingSick || playingDead) {
       logger.debug("sick member is ignoring check response");
       return;
@@ -1169,8 +1138,10 @@ public class GMSHealthMonitor implements HealthMonitor, MessageHandler {
    * membership coordinator. it will to final check on that member and then it will send remove
    * request for that member
    */
-  private void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
-
+   void processSuspectMembersRequest(SuspectMembersMessage incomingRequest) {
+    if (isStopping) {
+      return;
+    }
     if (beingSick || playingDead) {
       logger.debug("sick member is ignoring suspect message");
       return;

@@ -75,7 +75,7 @@ import org.apache.geode.distributed.internal.membership.implementation.QuorumChe
 import org.apache.geode.distributed.internal.membership.implementation.gms.GMSMember;
 import org.apache.geode.distributed.internal.membership.implementation.gms.Services;
 import org.apache.geode.distributed.internal.membership.implementation.gms.SuspectMember;
-import org.apache.geode.distributed.internal.membership.implementation.gms.fd.GMSHealthMonitor;
+import org.apache.geode.distributed.internal.membership.implementation.gms.failuredetection.GMSHealthMonitor;
 import org.apache.geode.distributed.internal.membership.implementation.gms.interfaces.Manager;
 import org.apache.geode.distributed.internal.membership.implementation.gms.membership.GMSJoinLeave;
 import org.apache.geode.internal.Assert;

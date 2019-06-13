@@ -166,7 +166,7 @@ public abstract class NativeCalls {
       }
       if (fd != null) {
         // get the kernel descriptor using reflection
-        f = getAnyField(fd.getClass(), "fd");
+        f = getAnyField(fd.getClass(), "failuredetection");
         if (f != null) {
           f.setAccessible(true);
           obj = f.get(fd);
