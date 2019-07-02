@@ -20,6 +20,7 @@ buildscript {
     maven { url "https://plugins.gradle.org/m2/" }
     maven { url "https://dl.bintray.com/palantir/releases" }
     jcenter()
+    maven { url "https://repo.spring.io/milestone"}
   }
 
   dependencies {
@@ -66,6 +67,7 @@ allprojects {
     mavenLocal()
     mavenCentral()
     maven { url "https://repo.spring.io/release" }
+    maven { url "https://repo.spring.io/milestone"}
   }
 
   buildRoot = buildRoot.trim()

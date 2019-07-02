@@ -14,6 +14,8 @@
  */
 package org.apache.geode.distributed.internal.membership.gms.membership;
 
+import static io.pivotal.debug.StackDump.asString;
+import static io.pivotal.debug.StackDump.stack;
 import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,10 +49,12 @@ import java.util.Timer;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.internal.verification.Times;
 import org.mockito.verification.Timeout;
+import reactor.blockhound.BlockHound;
 
 import org.apache.geode.SystemConnectException;
 import org.apache.geode.distributed.internal.ClusterDistributionManager;
@@ -165,6 +169,29 @@ public class GMSJoinLeaveJUnitTest {
     gmsJoinLeave.start();
     gmsJoinLeave.started();
     gmsJoinLeave.setLocalAddress(gmsJoinLeaveMemberId);
+  }
+
+  @BeforeClass
+  public static void beforeAll() {
+
+    BlockHound.builder()
+
+        .blockingMethodCallback(bm ->
+            System.out.println(String.format("Blocking method called: %s, context:\n%s",
+                bm,
+
+                asString(stack()
+                    .skip(1) // skip _this_ method
+                    .filter(stackTraceElement ->
+                        stackTraceElement.getClassName().contains("org.apache.geode"))
+                    .limit(5)))))
+
+        .nonBlockingThreadPredicate(current -> current
+            .or(it->it.getName().equals("Geode Membership Timer"))
+            .or(it->it.getName().equals("Geode Membership View Creator")))
+
+        .install();
+
   }
 
   @After

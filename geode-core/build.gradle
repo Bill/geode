@@ -386,6 +386,8 @@ dependencies {
   integrationTestCompile('org.powermock:powermock-api-mockito2')
   integrationTestCompile('org.springframework:spring-test')
   integrationTestCompile('pl.pragmatists:JUnitParams')
+  integrationTestImplementation('io.projectreactor.tools:blockhound')
+  integrationTestImplementation('io.pivotal.debug:stackdump')
 
   integrationTestRuntime('org.apache.derby:derby')
   integrationTestRuntime('xerces:xercesImpl')
