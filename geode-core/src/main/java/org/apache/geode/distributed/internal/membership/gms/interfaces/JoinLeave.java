@@ -70,6 +70,8 @@ public interface JoinLeave extends Service {
    */
   boolean isMemberLeaving(DistributedMember mbr);
 
+  boolean isQuorumRequired();
+
   /**
    * test hook
    */

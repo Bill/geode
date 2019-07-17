@@ -16,6 +16,7 @@
  */
 
 apply from: "${rootDir}/${scriptDir}/standard-subproject-configuration.gradle"
+apply plugin: 'kotlin'
 
 apply plugin: 'antlr'
 apply plugin: 'me.champeau.gradle.jmh'
@@ -332,6 +333,8 @@ dependencies {
 
   //RMIIO is used for uploading jar files and copying them between locator an servers
   implementation('com.healthmarketscience.rmiio:rmiio')
+  
+  implementation('org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0-M2')
 
   //Geode-common has annotations and other pieces used geode-core
   //Currently it has ExpirationAction in it, which is an API dependency in core, but
@@ -415,6 +418,7 @@ dependencies {
   performanceTestCompile(project(':geode-junit')) {
     exclude module: 'geode-core'
   }
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
 tasks.eclipse.dependsOn(generateGrammarSource)
@@ -425,3 +429,25 @@ distributedTest {
 }
 
 rootProject.generate.dependsOn(generateGrammarSource)
+buildscript {
+    ext.kotlin_version = '1.3.41'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+repositories {
+    mavenCentral()
+}
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
