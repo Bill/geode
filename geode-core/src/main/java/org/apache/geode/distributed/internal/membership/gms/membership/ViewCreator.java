@@ -25,7 +25,8 @@ import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.DistributionMessage;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
 import org.apache.geode.distributed.internal.membership.NetView;
-import org.apache.geode.distributed.internal.membership.gms.Services;
+import org.apache.geode.distributed.internal.membership.gms.interfaces.Locator;
+import org.apache.geode.distributed.internal.membership.gms.interfaces.Messenger;
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinRequestMessage;
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinResponseMessage;
 import org.apache.geode.distributed.internal.membership.gms.messages.LeaveRequestMessage;
@@ -41,14 +42,24 @@ class ViewCreator extends LoggingThread {
   private static final long BROADCAST_MESSAGE_SLEEP_TIME =
       Long.getLong(DistributionConfig.GEMFIRE_PREFIX + "broadcast-message-sleep-time", 1000);
 
+  /*
+   Services
+   */
 
   private final GMSJoinLeave gmsJoinLeave;
   private final Logger logger;
-  private final Services services;
-  private final List<DistributionMessage> viewRequests;
+  private final Locator locator;
+  private final Messenger messenger;
   private final InternalDistributedMember localAddress;
+
+  /*
+   Work queue
+   */
+  private final List<DistributionMessage> viewRequests;
+
   private final int viewAckTimeout;
   private final long requestCollectionInterval;
+  private final long memberTimeout;
 
   /**
    * the last view that conflicted with view preparation
@@ -62,41 +73,53 @@ class ViewCreator extends LoggingThread {
   private volatile int abandonedViews = 0;
   private volatile boolean markViewCreatorForShutdown = false; // see GEODE-870
 
-
   /**
    * initial view to install. guarded by synch on ViewCreator
+   * GuardedBy("this")
    */
   NetView initialView;
+
   /**
    * initial joining members. guarded by synch on ViewCreator
+   * GuardedBy("this")
    */
   private List<InternalDistributedMember> initialJoins = Collections.emptyList();
+
   /**
    * initial leaving members guarded by synch on ViewCreator
+   * GuardedBy("this")
    */
   private Set<InternalDistributedMember> initialLeaving;
+
   /**
    * initial crashed members. guarded by synch on ViewCreator
+   * GuardedBy("this")
    */
   private Set<InternalDistributedMember> initialRemovals;
 
   ViewCreator(final String name,
               final GMSJoinLeave gmsJoinLeave,
               final Logger logger,
-              final Services services,
               final List<DistributionMessage> viewRequests,
               final InternalDistributedMember localAddress,
               final int viewAckTimeout,
-              final long requestCollectionInterval) {
+              final long requestCollectionInterval,
+              final long memberTimeout,
+              final Locator locator,
+              final Messenger messenger) {
     super(name);
     this.gmsJoinLeave = gmsJoinLeave;
     this.logger = logger;
-    this.services = services;
     this.viewRequests = viewRequests;
     this.localAddress = localAddress;
     this.viewAckTimeout = viewAckTimeout;
     this.requestCollectionInterval = requestCollectionInterval;
     this.lastConflictingView = null;
+
+    this.memberTimeout = memberTimeout;
+    this.locator = locator;
+    this.messenger = messenger;
+
   }
 
   void setLastConflictingView(final NetView lastConflictingView) {
@@ -171,7 +194,7 @@ class ViewCreator extends LoggingThread {
         // another view creator is active - sleep a bit to let it finish or go away
         retry = true;
         try {
-          sleep(services.getConfig().getMemberTimeout());
+          sleep(memberTimeout);
         } catch (InterruptedException e2) {
           setShutdownFlag();
           retry = false;
@@ -310,7 +333,7 @@ class ViewCreator extends LoggingThread {
             // pause before reattempting so that another view creator can either finish
             // or fail
             try {
-              sleep(services.getConfig().getMemberTimeout());
+              sleep(memberTimeout);
             } catch (InterruptedException e2) {
               setShutdownFlag();
             }
@@ -327,8 +350,6 @@ class ViewCreator extends LoggingThread {
       logger.info("View Creator thread is exiting");
       setShutdownFlag();
       informToPendingJoinRequests();
-      org.apache.geode.distributed.internal.membership.gms.interfaces.Locator locator =
-          services.getLocator();
       if (locator != null) {
         locator.setIsCoordinator(false);
       }
@@ -371,7 +392,7 @@ class ViewCreator extends LoggingThread {
       logger.debug("Sending coordinator to pending join request from {} myid {} coord {}",
           msg.getSender(), localAddress, v.getCoordinator());
       JoinResponseMessage jrm = new JoinResponseMessage(msg.getMemberID(), v, msg.getRequestId());
-      services.getMessenger().send(jrm);
+      messenger.send(jrm);
     }
 
     return true;
