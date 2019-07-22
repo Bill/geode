@@ -522,66 +522,68 @@ public class GMSJoinLeave implements JoinLeave {
    * the request for processing in another thread. If this is not the coordinator but the
    * coordinator is known, the message is forwarded to the coordinator.
    *
-   * @param incomingRequest the request to be processed
+q   * @param joinRequest the request to be processed
    */
-  void processMessage(JoinRequestMessage incomingRequest) {
+  void processMessage(final JoinRequestMessage joinRequest) {
     if (isStopping) {
       return;
     }
 
-    logger.info("Received a join request from {}", incomingRequest.getMemberID());
+    logger.info("Received a join request from {}", joinRequest.getMemberID());
 
     if (!ALLOW_OLD_VERSION_FOR_TESTING
-        && incomingRequest.getMemberID().getVersionObject().compareTo(Version.CURRENT) < 0) {
+        && joinRequest.getMemberID().getVersionObject().compareTo(Version.CURRENT) < 0) {
       logger.warn("detected an attempt to start a peer using an older version of the product {}",
-          incomingRequest.getMemberID());
+          joinRequest.getMemberID());
       JoinResponseMessage m =
           new JoinResponseMessage("Rejecting the attempt of a member using an older version of the "
-              + "product to join the distributed system", incomingRequest.getRequestId());
-      m.setRecipient(incomingRequest.getMemberID());
+              + "product to join the distributed system", joinRequest.getRequestId());
+      m.setRecipient(joinRequest.getMemberID());
       services.getMessenger().send(m);
       return;
     }
 
-    Object creds = incomingRequest.getCredentials();
+    Object creds = joinRequest.getCredentials();
     String rejection;
     try {
-      rejection = services.getAuthenticator().authenticate(incomingRequest.getMemberID(),
+      rejection = services.getAuthenticator().authenticate(joinRequest.getMemberID(),
           (Properties) creds);
     } catch (Exception e) {
       rejection = e.getMessage();
     }
     if (rejection != null && rejection.length() > 0) {
       JoinResponseMessage m = new JoinResponseMessage(rejection, 0);
-      m.setRecipient(incomingRequest.getMemberID());
+      m.setRecipient(joinRequest.getMemberID());
       services.getMessenger().send(m);
       return;
     }
 
-    recordViewRequest(incomingRequest);
+    distributeClusterSecretKey(joinRequest);
+
+    recordViewRequest(joinRequest);
   }
 
   /**
    * Process a Leave request from another member. This may cause this member to become the new
    * membership coordinator. If this is the coordinator a new view will be triggered.
    *
-   * @param incomingRequest the request to be processed
+   * @param leaveRequest the request to be processed
    */
-  void processMessage(LeaveRequestMessage incomingRequest) {
+  void processMessage(final LeaveRequestMessage leaveRequest) {
     if (isStopping) {
       return;
     }
 
-    logger.info("received leave request from {} for {}", incomingRequest.getSender(),
-        incomingRequest.getMemberID());
+    logger.info("received leave request from {} for {}", leaveRequest.getSender(),
+        leaveRequest.getMemberID());
 
     NetView v = currentView;
     if (v == null) {
-      recordViewRequest(incomingRequest);
+      recordViewRequest(leaveRequest);
       return;
     }
 
-    InternalDistributedMember mbr = incomingRequest.getMemberID();
+    InternalDistributedMember mbr = leaveRequest.getMemberID();
 
     logger.info(() -> "JoinLeave.processMessage(LeaveRequestMessage) invoked.  isCoordinator="
         + isCoordinator
@@ -593,10 +595,10 @@ public class GMSJoinLeave implements JoinLeave {
       return;
     }
 
-    if (incomingRequest.getMemberID().equals(this.localAddress)) {
+    if (leaveRequest.getMemberID().equals(this.localAddress)) {
       logger.info("I am being told to leave the distributed system by {}",
-          incomingRequest.getSender());
-      forceDisconnect(incomingRequest.getReason());
+          leaveRequest.getSender());
+      forceDisconnect(leaveRequest.getReason());
       return;
     }
 
@@ -627,9 +629,9 @@ public class GMSJoinLeave implements JoinLeave {
       }
     } else {
       if (!isStopping && !services.getCancelCriterion().isCancelInProgress()) {
-        recordViewRequest(incomingRequest);
-        this.viewProcessor.processLeaveRequest(incomingRequest.getMemberID());
-        this.prepareProcessor.processLeaveRequest(incomingRequest.getMemberID());
+        recordViewRequest(leaveRequest);
+        this.viewProcessor.processLeaveRequest(leaveRequest.getMemberID());
+        this.prepareProcessor.processLeaveRequest(leaveRequest.getMemberID());
       }
     }
   }
@@ -638,22 +640,22 @@ public class GMSJoinLeave implements JoinLeave {
    * Process a Remove request from another member. This may cause this member to become the new
    * membership coordinator. If this is the coordinator a new view will be triggered.
    *
-   * @param incomingRequest the request to process
+   * @param removeMemberRequest the request to process
    */
-  void processMessage(RemoveMemberMessage incomingRequest) {
+  void processMessage(final RemoveMemberMessage removeMemberRequest) {
     if (isStopping) {
       return;
     }
 
     NetView v = currentView;
     boolean fromMe =
-        incomingRequest.getSender() == null || incomingRequest.getSender().equals(localAddress);
+        removeMemberRequest.getSender() == null || removeMemberRequest.getSender().equals(localAddress);
 
-    InternalDistributedMember mbr = incomingRequest.getMemberID();
+    InternalDistributedMember mbr = removeMemberRequest.getMemberID();
 
-    if (v != null && !v.contains(incomingRequest.getSender())) {
+    if (v != null && !v.contains(removeMemberRequest.getSender())) {
       logger.info("Membership ignoring removal request for " + mbr + " from non-member "
-          + incomingRequest.getSender());
+          + removeMemberRequest.getSender());
       return;
     }
 
@@ -664,12 +666,12 @@ public class GMSJoinLeave implements JoinLeave {
 
     if (!fromMe) {
       logger.info("Membership received a request to remove " + mbr + " from "
-          + incomingRequest.getSender() + " reason=" + incomingRequest.getReason());
+          + removeMemberRequest.getSender() + " reason=" + removeMemberRequest.getReason());
     }
 
     if (mbr.equals(this.localAddress)) {
       // oops - I've been kicked out
-      forceDisconnect(incomingRequest.getReason());
+      forceDisconnect(removeMemberRequest.getReason());
       return;
     }
 
@@ -700,7 +702,7 @@ public class GMSJoinLeave implements JoinLeave {
         // shutdown (especially shutdownAll), so we check for a scheduled shutdown
         // message
         if (!getPendingRequestIDs(LEAVE_REQUEST_MESSAGE).contains(mbr)) {
-          recordViewRequest(incomingRequest);
+          recordViewRequest(removeMemberRequest);
           this.viewProcessor.processRemoveRequest(mbr);
           this.prepareProcessor.processRemoveRequest(mbr);
         }
@@ -709,27 +711,27 @@ public class GMSJoinLeave implements JoinLeave {
         if (!v.contains(mbr)) {
           // removing a rogue process
           RemoveMemberMessage removeMemberMessage = new RemoveMemberMessage(mbr, mbr,
-              incomingRequest.getReason());
+              removeMemberRequest.getReason());
           services.getMessenger().send(removeMemberMessage);
         }
       }
     }
   }
 
+  private void distributeClusterSecretKey(final JoinRequestMessage joinRequest) {
+    if (isCoordinator
+        && !services.getConfig().getDistributionConfig().getSecurityUDPDHAlgo().isEmpty()) {
+      services.getMessenger().initClusterKey();
+      // this will inform about cluster-secret key, as we have authenticated at this point
+      final JoinResponseMessage response = new JoinResponseMessage(joinRequest.getSender(),
+          services.getMessenger().getClusterSecretKey(), joinRequest.getRequestId());
+      services.getMessenger().send(response);
+    }
+  }
+
   private void recordViewRequest(DistributionMessage request) {
     try {
       synchronized (viewRequests) {
-        if (request instanceof JoinRequestMessage) {
-          if (isCoordinator
-              && !services.getConfig().getDistributionConfig().getSecurityUDPDHAlgo().isEmpty()) {
-            services.getMessenger().initClusterKey();
-            JoinRequestMessage jreq = (JoinRequestMessage) request;
-            // this will inform about cluster-secret key, as we have authenticated at this point
-            JoinResponseMessage response = new JoinResponseMessage(jreq.getSender(),
-                services.getMessenger().getClusterSecretKey(), jreq.getRequestId());
-            services.getMessenger().send(response);
-          }
-        }
         logger.debug("Recording the request to be processed in the next membership view");
         viewRequests.add(request);
         viewRequests.notifyAll();
@@ -741,19 +743,10 @@ public class GMSJoinLeave implements JoinLeave {
   }
 
   private void sendDHKeys() {
-    if (isCoordinator
-        && !services.getConfig().getDistributionConfig().getSecurityUDPDHAlgo().isEmpty()) {
-      synchronized (viewRequests) {
-        for (DistributionMessage request : viewRequests) {
-          if (request instanceof JoinRequestMessage) {
-
-            services.getMessenger().initClusterKey();
-            JoinRequestMessage jreq = (JoinRequestMessage) request;
-            // this will inform about cluster-secret key, as we have authenticated at this point
-            JoinResponseMessage response = new JoinResponseMessage(jreq.getSender(),
-                services.getMessenger().getClusterSecretKey(), jreq.getRequestId());
-            services.getMessenger().send(response);
-          }
+    synchronized (viewRequests) {
+      for (final DistributionMessage request : viewRequests) {
+        if (request instanceof JoinRequestMessage) {
+          distributeClusterSecretKey((JoinRequestMessage) request);
         }
       }
     }
