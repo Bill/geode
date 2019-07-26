@@ -1119,7 +1119,11 @@ public class GMSJoinLeaveJUnitTest {
     try {
       initMocks(false);
       System.setProperty(GMSJoinLeave.BYPASS_DISCOVERY_PROPERTY, "true");
-      gmsJoinLeave.join();
+      gmsJoinLeave.join(); // starts the ViewCreator thread
+      /*
+       FIXME: this test if flaky because of a race: gotta get size of collection before
+       ViewCreator.run() processes the message!
+       */
       gmsJoinLeave.processMessage(
           new JoinRequestMessage(mockMembers[0], mockMembers[0], credentials, -1, 0));
       int viewRequests = gmsJoinLeave.getViewRequests().size();

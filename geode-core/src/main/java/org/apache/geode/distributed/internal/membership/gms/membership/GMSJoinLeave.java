@@ -172,6 +172,12 @@ public class GMSJoinLeave implements JoinLeave {
   private final List<DistributionMessage> viewRequests = new LinkedList<DistributionMessage>();
 
   /**
+   * façade over new coroutine-based view creator logic. Unlike old viewCreator,
+   * viewCreator2's lifecycle corresponds to that of the GMSJoinLeave object.
+   */
+  private final ViewCreator2 viewCreator2 = new ViewCreator2();
+
+  /**
    * the established request collection jitter. This can be overridden for testing with
    * delayViewCreationForTest
    */
@@ -522,7 +528,7 @@ public class GMSJoinLeave implements JoinLeave {
    * the request for processing in another thread. If this is not the coordinator but the
    * coordinator is known, the message is forwarded to the coordinator.
    *
-q   * @param joinRequest the request to be processed
+   * @param joinRequest the request to be processed
    */
   void processMessage(final JoinRequestMessage joinRequest) {
     if (isStopping) {
@@ -561,6 +567,7 @@ q   * @param joinRequest the request to be processed
     distributeClusterSecretKey(joinRequest);
 
     recordViewRequest(joinRequest);
+    viewCreator2.submit(joinRequest);
   }
 
   /**
@@ -580,6 +587,7 @@ q   * @param joinRequest the request to be processed
     NetView v = currentView;
     if (v == null) {
       recordViewRequest(leaveRequest);
+      viewCreator2.submit(leaveRequest);
       return;
     }
 
@@ -620,8 +628,12 @@ q   * @param joinRequest the request to be processed
       logger.info("View with removed and left members removed is {}", check);
       if (check.getCoordinator().equals(localAddress)) {
         for (InternalDistributedMember suspect : suspectMembers) {
+          final RemoveMemberMessage
+              removeRequest =
+              new RemoveMemberMessage(localAddress, suspect, "Failed availability check");
           recordViewRequest(
-              new RemoveMemberMessage(localAddress, suspect, "Failed availability check"));
+              removeRequest);
+          viewCreator2.submit(removeRequest);
         }
         synchronized (viewInstallationLock) {
           becomeCoordinator(mbr);
@@ -630,6 +642,7 @@ q   * @param joinRequest the request to be processed
     } else {
       if (!isStopping && !services.getCancelCriterion().isCancelInProgress()) {
         recordViewRequest(leaveRequest);
+        viewCreator2.submit(leaveRequest);
         this.viewProcessor.processLeaveRequest(leaveRequest.getMemberID());
         this.prepareProcessor.processLeaveRequest(leaveRequest.getMemberID());
       }
@@ -703,6 +716,7 @@ q   * @param joinRequest the request to be processed
         // message
         if (!getPendingRequestIDs(LEAVE_REQUEST_MESSAGE).contains(mbr)) {
           recordViewRequest(removeMemberRequest);
+          viewCreator2.submit(removeMemberRequest);
           this.viewProcessor.processRemoveRequest(mbr);
           this.prepareProcessor.processRemoveRequest(mbr);
         }
@@ -742,6 +756,7 @@ q   * @param joinRequest the request to be processed
     }
   }
 
+  // TODO: Bruce thinks I can delete this
   private void sendDHKeys() {
     synchronized (viewRequests) {
       for (final DistributionMessage request : viewRequests) {
@@ -754,6 +769,8 @@ q   * @param joinRequest the request to be processed
 
   // for testing purposes, returns a copy of the view requests for verification
   List<DistributionMessage> getViewRequests() {
+    System.out.println("in getViewRequests() snapshot from coroutine is: " +
+        viewCreator2.snapshot());
     synchronized (viewRequests) {
       return new LinkedList<DistributionMessage>(viewRequests);
     }
@@ -803,22 +820,21 @@ q   * @param joinRequest the request to be processed
       locator.setIsCoordinator(true);
     }
     sendDHKeys();
+    final NetView newView;
     if (currentView == null) {
       // create the initial membership view
-      NetView newView = new NetView(this.localAddress);
+      newView = new NetView(this.localAddress);
       newView.setFailureDetectionPort(localAddress,
           services.getHealthMonitor().getFailureDetectionPort());
       this.localAddress.setVmViewId(0);
       installView(newView);
       isJoined = true;
-      createAndStartViewCreator(newView);
-      startViewBroadcaster();
     } else {
       // create and send out a new view
-      NetView newView = copyCurrentViewAndAddMyAddress(oldCoordinator);
-      createAndStartViewCreator(newView);
-      startViewBroadcaster();
+      newView = copyCurrentViewAndAddMyAddress(oldCoordinator);
     }
+    createAndStartViewCreator(newView);
+    startViewBroadcaster();
   }
 
   private void createAndStartViewCreator(NetView newView) {
@@ -842,10 +858,6 @@ q   * @param joinRequest the request to be processed
       }
       logger.info("ViewCreator starting on:" + localAddress);
       viewCreator.start();
-
-      final CoroutineDispatcher dispatcher = Dispatchers.getDefault();
-      final CoroutineScope scope = CoroutineScopeKt.CoroutineScope(dispatcher);
-      ViewCreator2Kt.runViewCreator(scope,"Geode Membership View Creator");
     }
   }
 
@@ -1566,6 +1578,7 @@ q   * @param joinRequest the request to be processed
           this.isCoordinator = false;
         }
       }
+      // TODO: remove this if block entirely according to Bruce
       if (!this.isCoordinator) {
         // get rid of outdated requests. It's possible some requests are
         // newer than the view just processed - the senders will have to
