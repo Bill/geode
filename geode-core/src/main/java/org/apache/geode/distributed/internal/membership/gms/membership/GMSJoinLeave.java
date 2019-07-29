@@ -33,11 +33,11 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
 
-import kotlinx.coroutines.CoroutineDispatcher;
-import kotlinx.coroutines.CoroutineScope;
-import kotlinx.coroutines.CoroutineScopeKt;
-import kotlinx.coroutines.Dispatchers;
+import kotlinx.coroutines.CoroutineName;
+import kotlinx.coroutines.ExecutorCoroutineDispatcher;
+import kotlinx.coroutines.ExecutorsKt;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Logger;
 
@@ -68,6 +68,7 @@ import org.apache.geode.distributed.internal.membership.gms.messages.RemoveMembe
 import org.apache.geode.distributed.internal.membership.gms.messages.ViewAckMessage;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.Version;
+import org.apache.geode.internal.logging.LoggingExecutors;
 import org.apache.geode.security.AuthenticationRequiredException;
 import org.apache.geode.security.GemFireSecurityException;
 
@@ -175,7 +176,7 @@ public class GMSJoinLeave implements JoinLeave {
    * façade over new coroutine-based view creator logic. Unlike old viewCreator,
    * viewCreator2's lifecycle corresponds to that of the GMSJoinLeave object.
    */
-  private final ViewCreator2 viewCreator2 = new ViewCreator2();
+  private final ViewCreator2 viewCreator2;
 
   /**
    * the established request collection jitter. This can be overridden for testing with
@@ -237,6 +238,13 @@ public class GMSJoinLeave implements JoinLeave {
    * the view where quorum was most recently lost
    */
   NetView quorumLostView;
+
+  public GMSJoinLeave() {
+    final ExecutorService executor =
+        LoggingExecutors.newSingleThreadExecutor("View Creator 2 Thread#", true);
+    final ExecutorCoroutineDispatcher dispatcher = ExecutorsKt.from(executor);
+    viewCreator2 = new ViewCreator2(dispatcher);
+  }
 
   static class SearchState {
     public int joinedMembersContacted;
@@ -857,6 +865,7 @@ public class GMSJoinLeave implements JoinLeave {
             newView.getCrashedMembers());
       }
       logger.info("ViewCreator starting on:" + localAddress);
+
       viewCreator.start();
     }
   }
