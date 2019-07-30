@@ -575,7 +575,6 @@ public class GMSJoinLeave implements JoinLeave {
     distributeClusterSecretKey(joinRequest);
 
     recordViewRequest(joinRequest);
-    viewCreator2.submit(joinRequest);
   }
 
   /**
@@ -595,7 +594,6 @@ public class GMSJoinLeave implements JoinLeave {
     NetView v = currentView;
     if (v == null) {
       recordViewRequest(leaveRequest);
-      viewCreator2.submit(leaveRequest);
       return;
     }
 
@@ -639,9 +637,7 @@ public class GMSJoinLeave implements JoinLeave {
           final RemoveMemberMessage
               removeRequest =
               new RemoveMemberMessage(localAddress, suspect, "Failed availability check");
-          recordViewRequest(
-              removeRequest);
-          viewCreator2.submit(removeRequest);
+          recordViewRequest(removeRequest);
         }
         synchronized (viewInstallationLock) {
           becomeCoordinator(mbr);
@@ -650,7 +646,6 @@ public class GMSJoinLeave implements JoinLeave {
     } else {
       if (!isStopping && !services.getCancelCriterion().isCancelInProgress()) {
         recordViewRequest(leaveRequest);
-        viewCreator2.submit(leaveRequest);
         this.viewProcessor.processLeaveRequest(leaveRequest.getMemberID());
         this.prepareProcessor.processLeaveRequest(leaveRequest.getMemberID());
       }
@@ -724,7 +719,6 @@ public class GMSJoinLeave implements JoinLeave {
         // message
         if (!getPendingRequestIDs(LEAVE_REQUEST_MESSAGE).contains(mbr)) {
           recordViewRequest(removeMemberRequest);
-          viewCreator2.submit(removeMemberRequest);
           this.viewProcessor.processRemoveRequest(mbr);
           this.prepareProcessor.processRemoveRequest(mbr);
         }
@@ -752,6 +746,7 @@ public class GMSJoinLeave implements JoinLeave {
   }
 
   private void recordViewRequest(DistributionMessage request) {
+    viewCreator2.submit(request);
     try {
       synchronized (viewRequests) {
         logger.debug("Recording the request to be processed in the next membership view");
@@ -766,22 +761,17 @@ public class GMSJoinLeave implements JoinLeave {
 
   // TODO: Bruce thinks I can delete this
   private void sendDHKeys() {
-    synchronized (viewRequests) {
-      for (final DistributionMessage request : viewRequests) {
+    final Collection<DistributionMessage> requests = viewCreator2.snapshot();
+      for (final DistributionMessage request : requests) {
         if (request instanceof JoinRequestMessage) {
           distributeClusterSecretKey((JoinRequestMessage) request);
         }
-      }
     }
   }
 
   // for testing purposes, returns a copy of the view requests for verification
-  List<DistributionMessage> getViewRequests() {
-    System.out.println("in getViewRequests() snapshot from coroutine is: " +
-        viewCreator2.snapshot());
-    synchronized (viewRequests) {
-      return new LinkedList<DistributionMessage>(viewRequests);
-    }
+  Collection<DistributionMessage> getViewRequests() {
+    return viewCreator2.snapshot();
   }
 
   // for testing purposes, returns the view-creation thread
@@ -827,7 +817,7 @@ public class GMSJoinLeave implements JoinLeave {
     if (locator != null) {
       locator.setIsCoordinator(true);
     }
-    sendDHKeys();
+//    sendDHKeys();
     final NetView newView;
     if (currentView == null) {
       // create the initial membership view
@@ -1588,29 +1578,29 @@ public class GMSJoinLeave implements JoinLeave {
         }
       }
       // TODO: remove this if block entirely according to Bruce
-      if (!this.isCoordinator) {
-        // get rid of outdated requests. It's possible some requests are
-        // newer than the view just processed - the senders will have to
-        // resend these
-        synchronized (viewRequests) {
-          for (Iterator<DistributionMessage> it = viewRequests.iterator(); it.hasNext();) {
-            DistributionMessage m = it.next();
-            if (m instanceof JoinRequestMessage) {
-              if (currentView.contains(((JoinRequestMessage) m).getMemberID())) {
-                it.remove();
-              }
-            } else if (m instanceof LeaveRequestMessage) {
-              if (!currentView.contains(((LeaveRequestMessage) m).getMemberID())) {
-                it.remove();
-              }
-            } else if (m instanceof RemoveMemberMessage) {
-              if (!currentView.contains(((RemoveMemberMessage) m).getMemberID())) {
-                it.remove();
-              }
-            }
-          }
-        }
-      }
+//      if (!this.isCoordinator) {
+//        // get rid of outdated requests. It's possible some requests are
+//        // newer than the view just processed - the senders will have to
+//        // resend these
+//        synchronized (viewRequests) {
+//          for (Iterator<DistributionMessage> it = viewRequests.iterator(); it.hasNext();) {
+//            DistributionMessage m = it.next();
+//            if (m instanceof JoinRequestMessage) {
+//              if (currentView.contains(((JoinRequestMessage) m).getMemberID())) {
+//                it.remove();
+//              }
+//            } else if (m instanceof LeaveRequestMessage) {
+//              if (!currentView.contains(((LeaveRequestMessage) m).getMemberID())) {
+//                it.remove();
+//              }
+//            } else if (m instanceof RemoveMemberMessage) {
+//              if (!currentView.contains(((RemoveMemberMessage) m).getMemberID())) {
+//                it.remove();
+//              }
+//            }
+//          }
+//        }
+//      }
     }
     synchronized (removedMembers) {
       removeMembersFromCollectionIfNotInView(removedMembers, currentView);
@@ -1926,13 +1916,12 @@ public class GMSJoinLeave implements JoinLeave {
    */
   Set<InternalDistributedMember> getPendingRequestIDs(int theDSFID) {
     Set<InternalDistributedMember> result = new HashSet<>();
-    synchronized (viewRequests) {
-      for (DistributionMessage msg : viewRequests) {
+    final Collection<DistributionMessage> messages = viewCreator2.snapshot();
+      for (DistributionMessage msg : messages) {
         if (msg.getDSFID() == theDSFID) {
           result.add(((HasMemberID) msg).getMemberID());
         }
       }
-    }
     return result;
   }
 
