@@ -35,7 +35,6 @@ import java.util.Set;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 
-import kotlinx.coroutines.CoroutineName;
 import kotlinx.coroutines.ExecutorCoroutineDispatcher;
 import kotlinx.coroutines.ExecutorsKt;
 import org.apache.commons.lang3.StringUtils;
@@ -817,7 +816,7 @@ public class GMSJoinLeave implements JoinLeave {
     if (locator != null) {
       locator.setIsCoordinator(true);
     }
-//    sendDHKeys();
+    sendDHKeys();
     final NetView newView;
     if (currentView == null) {
       // create the initial membership view
@@ -850,6 +849,7 @@ public class GMSJoinLeave implements JoinLeave {
           services.getLocator(),
           services.getMessenger()
       );
+      viewCreator2.setIsCoordinator(true);
       if (newView != null) {
         viewCreator.setInitialView(newView, newView.getNewMembers(), newView.getShutdownMembers(),
             newView.getCrashedMembers());
@@ -1549,6 +1549,7 @@ public class GMSJoinLeave implements JoinLeave {
       if (viewCreator != null)
         viewCreator.setLastConflictingView(null);
       services.installView(newView);
+      viewCreator2.newViewInstalled(newView);
 
       if (!isJoined) {
         logger.debug("notifying join thread");
@@ -1577,30 +1578,6 @@ public class GMSJoinLeave implements JoinLeave {
           this.isCoordinator = false;
         }
       }
-      // TODO: remove this if block entirely according to Bruce
-//      if (!this.isCoordinator) {
-//        // get rid of outdated requests. It's possible some requests are
-//        // newer than the view just processed - the senders will have to
-//        // resend these
-//        synchronized (viewRequests) {
-//          for (Iterator<DistributionMessage> it = viewRequests.iterator(); it.hasNext();) {
-//            DistributionMessage m = it.next();
-//            if (m instanceof JoinRequestMessage) {
-//              if (currentView.contains(((JoinRequestMessage) m).getMemberID())) {
-//                it.remove();
-//              }
-//            } else if (m instanceof LeaveRequestMessage) {
-//              if (!currentView.contains(((LeaveRequestMessage) m).getMemberID())) {
-//                it.remove();
-//              }
-//            } else if (m instanceof RemoveMemberMessage) {
-//              if (!currentView.contains(((RemoveMemberMessage) m).getMemberID())) {
-//                it.remove();
-//              }
-//            }
-//          }
-//        }
-//      }
     }
     synchronized (removedMembers) {
       removeMembersFromCollectionIfNotInView(removedMembers, currentView);
@@ -1685,6 +1662,7 @@ public class GMSJoinLeave implements JoinLeave {
   private void stopCoordinatorServices() {
     if (viewCreator != null && !viewCreator.isShutdown()) {
       logger.debug("Shutting down ViewCreator");
+      viewCreator2.setIsCoordinator(false);
       viewCreator.shutdown();
       try {
         viewCreator.join(1000);

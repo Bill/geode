@@ -7,6 +7,12 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.channels.ticker
 import kotlinx.coroutines.selects.select
 
+typealias BatchFrequencyMillis = Long
+val NO_BATCHES: BatchFrequencyMillis = -1       // produce no batches at all
+
+// TODO: Figure out why good ole' java.util.function.Predicate gives compile error when I use it
+typealias Predicate<T> = (T) -> Boolean
+
 /**
  * This is a coroutine builder. The coroutine it builds is a producer (channel/coroutine) that
  * groups elements from the input into time windows of [periodMillis]
@@ -15,8 +21,10 @@ import kotlinx.coroutines.selects.select
  * send a [CompletableDeferred] to [snapshotRequests] and receive a (async) snapshot.
  *
  * @param input is the input [Channel]
- * @param periodMillis is the time period, in milliseconds
  * @param snapshotRequests is for async snapshot requests
+ * @param filterRequests takes a predicate to filter the pending messages
+ * @param batchFrequencyRequests takes adjustments to batch frequency (including turning batching
+ * off entrely via [NO_BATCHES]
  * @return a [Channel] of batches of elements
  */
 @ObsoleteCoroutinesApi
@@ -24,12 +32,15 @@ import kotlinx.coroutines.selects.select
 fun <T> CoroutineScope.timeWindow(
         input: ReceiveChannel<T>,
         snapshotRequests: Channel<CompletableDeferred<Collection<T>>>,
-        periodMillis: Long) =
+        filterRequests: Channel<Predicate<T>>,
+        batchFrequencyRequests: Channel<BatchFrequencyMillis>) =
         produce<Collection<T>>(coroutineContext + CoroutineName("Time Window Coroutine")) {
 
-            val ticker = ticker(periodMillis)
-
             var seen = mutableListOf<T>()
+
+            val notATicker = Channel<Unit>() // so ticker never has to be null
+
+            var ticker: ReceiveChannel<Unit> = notATicker
 
             while (true) {
 
@@ -45,6 +56,26 @@ fun <T> CoroutineScope.timeWindow(
                         it.complete(seen.toList())
                     }
 
+                    filterRequests.onReceive {
+                        seen = seen.filter(it).toMutableList()
+                    }
+
+                    batchFrequencyRequests.onReceive {
+                        if (ticker != notATicker)
+                            ticker.cancel()
+                        if (it == NO_BATCHES) {
+                            ticker = notATicker
+                        } else
+                            ticker = ticker(it)
+                    }
+
+                    /*
+                     can't do it this way because of compiler bug:
+                     https://github.com/Kotlin/kotlinx.coroutines/issues/448
+                     ticker?.onReceive {...}
+                     so when ticker would otherwise be null we assign it a dummy channel
+                     so it doesn't tick
+                     */
                     ticker.onReceive {
                         if (seen.isNotEmpty())
                             log("producing batch: $seen")
