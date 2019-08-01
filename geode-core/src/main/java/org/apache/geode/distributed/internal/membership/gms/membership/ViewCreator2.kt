@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.selects.select
 import org.apache.geode.distributed.internal.DistributionMessage
 import org.apache.geode.distributed.internal.membership.NetView
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinRequestMessage
@@ -23,11 +24,11 @@ fun log(msg: String) = println("[${Thread.currentThread().name}] $msg")
  * This is a coroutine builder for the view creator (coroutine)
  */
 fun CoroutineScope.viewCreator(
-        messages: ReceiveChannel<Collection<DistributionMessage>>) =
+        messageBatches: ReceiveChannel<Collection<DistributionMessage>>) =
         launch(coroutineContext + CoroutineName("View Creator Coroutine")) {
 
             while (true) {
-                val msg = messages.receive()
+                val msg = messageBatches.receive()
                 if (msg.isNotEmpty())
                 log("received batch: $msg")
             }
@@ -96,6 +97,26 @@ private object NotCoordinatorState : State() {
     }
 }
 
+fun CoroutineScope.viewCreatorCoordinatorState(
+        setIsCoordinatorRequests: Channel<Boolean>,
+        newViewInstalledRequests: Channel<NetView>,
+        filterRequests: Channel<Predicate<DistributionMessage>>,
+        batchFrequencyRequests: Channel<BatchFrequencyMillis>) =
+        launch(coroutineContext + CoroutineName("View Creator Coordinator State")) {
+            var state: State = NotCoordinatorState
+
+            while(true) {
+                select<Unit> {
+                    setIsCoordinatorRequests.onReceive {
+                        state = state.setIsCoordinator(it, batchFrequencyRequests)
+                    }
+                    newViewInstalledRequests.onReceive {
+                        state.newViewInstalled(it, filterRequests)
+                    }
+                }
+            }
+        }
+
 /**
  * This class provides convenient communication with the creator coroutine(s) from Java.
  * It's a [CoroutineScope] that can be [destroy]ed to stop all the coroutines it has
@@ -111,30 +132,29 @@ class ViewCreator2(
             Channel()
     private val filterRequests: Channel<Predicate<DistributionMessage>> = Channel()
     private val batchFrequencyRequests: Channel<BatchFrequencyMillis> = Channel()
-    private var state: State = NotCoordinatorState
+    private val setIsCoordinatorRequests: Channel<Boolean> = Channel()
+    private val newViewInstalledRequests: Channel<NetView> = Channel()
 
     init {
         log("BOOM! Constructed!")
         val messageBatches = timeWindow(messages, snapshotRequests, filterRequests, batchFrequencyRequests)
         viewCreator(messageBatches)
+        viewCreatorCoordinatorState(setIsCoordinatorRequests, newViewInstalledRequests, filterRequests, batchFrequencyRequests)
     }
 
-    // fire-and-forget
-    fun submit(msg: DistributionMessage) =
-            launch(coroutineContext + CoroutineName("Membership View Creator submit()")) {
-                messages.send(msg)
-            }
+    fun submit(msg: DistributionMessage) = runBlocking {
+        messages.send(msg)
+    }
 
     /**
      * request-respone
      */
-    fun snapshot(): Collection<DistributionMessage> =
-            runBlocking(coroutineContext + CoroutineName("Membership View Creator snapshot()")) {
-                with(CompletableDeferred<Collection<DistributionMessage>>()) {
-                    snapshotRequests.send(this)
-                    await()
-                }
-            }
+    fun snapshot(): Collection<DistributionMessage> = runBlocking {
+        with(CompletableDeferred<Collection<DistributionMessage>>()) {
+            snapshotRequests.send(this)
+            await()
+        }
+    }
 
     /**
      * Call this method to notify view creator that this node has become the coordinator
@@ -144,10 +164,10 @@ class ViewCreator2(
      * relinquished that role
      */
     fun setIsCoordinator(becomeCoordinator: Boolean) = runBlocking {
-        state = state.setIsCoordinator(becomeCoordinator, batchFrequencyRequests)
+        setIsCoordinatorRequests.send(becomeCoordinator)
     }
     
     fun newViewInstalled(newView: NetView) = runBlocking {
-        state.newViewInstalled(newView, filterRequests)
+        newViewInstalledRequests.send(newView)
     }
 }

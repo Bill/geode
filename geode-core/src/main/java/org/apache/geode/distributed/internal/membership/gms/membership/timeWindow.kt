@@ -38,9 +38,20 @@ fun <T> CoroutineScope.timeWindow(
 
             var seen = mutableListOf<T>()
 
-            val notATicker = Channel<Unit>() // so ticker never has to be null
+            /*
+            This is a channel that will never produce anything.
+            ticker can't be nullable because of this compiler bug:
 
-            var ticker: ReceiveChannel<Unit> = notATicker
+                     https://github.com/Kotlin/kotlinx.coroutines/issues/448
+
+            ticker?.onReceive {...} in the select block causes a runtime error.
+
+            Though a Channel is pretty lightweight (it has a queue object and little else)
+            it might be be nice to make an even lighter-weight, immutable one for this purpose.
+            */
+            val neverTick = Channel<Unit>()
+
+            var ticker: ReceiveChannel<Unit> = neverTick
 
             while (true) {
 
@@ -61,21 +72,14 @@ fun <T> CoroutineScope.timeWindow(
                     }
 
                     batchFrequencyRequests.onReceive {
-                        if (ticker != notATicker)
+                        if (ticker != neverTick)
                             ticker.cancel()
-                        if (it == NO_BATCHES) {
-                            ticker = notATicker
-                        } else
+                        if (it == NO_BATCHES)
+                            ticker = neverTick
+                        else
                             ticker = ticker(it)
                     }
 
-                    /*
-                     can't do it this way because of compiler bug:
-                     https://github.com/Kotlin/kotlinx.coroutines/issues/448
-                     ticker?.onReceive {...}
-                     so when ticker would otherwise be null we assign it a dummy channel
-                     so it doesn't tick
-                     */
                     ticker.onReceive {
                         if (seen.isNotEmpty())
                             log("producing batch: $seen")
