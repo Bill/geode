@@ -42,6 +42,7 @@ import org.apache.logging.log4j.Logger;
 
 import org.apache.geode.GemFireConfigException;
 import org.apache.geode.SystemConnectException;
+import org.apache.geode.annotations.VisibleForTesting;
 import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.Locator;
 import org.apache.geode.distributed.internal.ClusterDistributionManager;
@@ -242,7 +243,7 @@ public class GMSJoinLeave implements JoinLeave {
     final ExecutorService executor =
         LoggingExecutors.newSingleThreadExecutor("View Creator 2 Thread#", true);
     final ExecutorCoroutineDispatcher dispatcher = ExecutorsKt.from(executor);
-    viewCreator2 = new ViewCreator2(dispatcher);
+    viewCreator2 = new ViewCreator2(dispatcher, requestCollectionInterval);
   }
 
   static class SearchState {
@@ -280,7 +281,8 @@ public class GMSJoinLeave implements JoinLeave {
     }
   }
 
-  Object getViewInstallationLock() {
+  @VisibleForTesting
+  protected Object getViewInstallationLock() {
     return viewInstallationLock;
   }
 
@@ -862,36 +864,34 @@ public class GMSJoinLeave implements JoinLeave {
 
   private NetView copyCurrentViewAndAddMyAddress(InternalDistributedMember oldCoordinator) {
     boolean testing = unitTesting.contains("noRandomViewChange");
-    NetView newView;
     Set<InternalDistributedMember> leaving = new HashSet<>();
     Set<InternalDistributedMember> removals;
-    synchronized (viewInstallationLock) {
-      int rand = testing ? 0 : NetView.RANDOM.nextInt(10);
-      int viewNumber = currentView.getViewId() + 5 + rand;
-      if (this.localAddress.getVmViewId() < 0) {
-        this.localAddress.setVmViewId(viewNumber);
-      }
-      List<InternalDistributedMember> mbrs = new ArrayList<>(currentView.getMembers());
-      if (!mbrs.contains(localAddress)) {
-        mbrs.add(localAddress);
-      }
-      synchronized (this.removedMembers) {
-        removals = new HashSet<>(this.removedMembers);
-      }
-      synchronized (this.leftMembers) {
-        leaving.addAll(leftMembers);
-      }
-      if (oldCoordinator != null && !removals.contains(oldCoordinator)) {
-        leaving.add(oldCoordinator);
-      }
-      mbrs.removeAll(removals);
-      mbrs.removeAll(leaving);
-      newView = new NetView(this.localAddress, viewNumber, mbrs, leaving, removals);
-      newView.setFailureDetectionPorts(currentView);
-      newView.setPublicKeys(currentView);
-      newView.setFailureDetectionPort(this.localAddress,
-          services.getHealthMonitor().getFailureDetectionPort());
+    int rand = testing ? 0 : NetView.RANDOM.nextInt(10);
+    final NetView oldView = this.currentView;
+    int viewNumber = oldView.getViewId() + 5 + rand;
+    if (this.localAddress.getVmViewId() < 0) {
+      this.localAddress.setVmViewId(viewNumber);
     }
+    List<InternalDistributedMember> mbrs = new ArrayList<>(oldView.getMembers());
+    if (!mbrs.contains(localAddress)) {
+      mbrs.add(localAddress);
+    }
+    synchronized (this.removedMembers) {
+      removals = new HashSet<>(this.removedMembers);
+    }
+    synchronized (this.leftMembers) {
+      leaving.addAll(leftMembers);
+    }
+    if (oldCoordinator != null && !removals.contains(oldCoordinator)) {
+      leaving.add(oldCoordinator);
+    }
+    mbrs.removeAll(removals);
+    mbrs.removeAll(leaving);
+    final NetView newView = new NetView(this.localAddress, viewNumber, mbrs, leaving, removals);
+    newView.setFailureDetectionPorts(oldView);
+    newView.setPublicKeys(oldView);
+    newView.setFailureDetectionPort(this.localAddress,
+        services.getHealthMonitor().getFailureDetectionPort());
     return newView;
   }
 

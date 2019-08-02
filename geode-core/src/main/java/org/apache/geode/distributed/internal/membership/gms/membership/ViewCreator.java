@@ -488,37 +488,35 @@ class ViewCreator extends LoggingThread {
     }
 
     NetView newView;
-    synchronized (gmsJoinLeave.getViewInstallationLock()) {
-      int viewNumber = 0;
-      List<InternalDistributedMember> mbrs;
-      if (gmsJoinLeave.getView() == null) {
-        mbrs = new ArrayList<InternalDistributedMember>();
-      } else {
-        viewNumber = gmsJoinLeave.getView().getViewId() + 1;
-        mbrs = new ArrayList<InternalDistributedMember>(oldMembers);
+    int viewNumber = 0;
+    List<InternalDistributedMember> mbrs;
+    if (oldView == null) {
+      mbrs = new ArrayList<InternalDistributedMember>();
+    } else {
+      viewNumber = oldView.getViewId() + 1;
+      mbrs = new ArrayList<InternalDistributedMember>(oldMembers);
+    }
+    mbrs.removeAll(leaveReqs);
+    mbrs.removeAll(removalReqs);
+    // add joinReqs after removing old members because an ID may
+    // be reused in an auto-reconnect and get a new vmViewID
+    mbrs.addAll(joinReqs);
+    newView = new NetView(localAddress, viewNumber, mbrs, leaveReqs,
+        new HashSet<InternalDistributedMember>(removalReqs));
+    for (InternalDistributedMember mbr : joinReqs) {
+      if (mbrs.contains(mbr)) {
+        newView.setFailureDetectionPort(mbr, joinPorts.get(mbr));
       }
-      mbrs.removeAll(leaveReqs);
-      mbrs.removeAll(removalReqs);
-      // add joinReqs after removing old members because an ID may
-      // be reused in an auto-reconnect and get a new vmViewID
-      mbrs.addAll(joinReqs);
-      newView = new NetView(localAddress, viewNumber, mbrs, leaveReqs,
-          new HashSet<InternalDistributedMember>(removalReqs));
-      for (InternalDistributedMember mbr : joinReqs) {
-        if (mbrs.contains(mbr)) {
-          newView.setFailureDetectionPort(mbr, joinPorts.get(mbr));
-        }
-      }
-      final NetView currentView = gmsJoinLeave.getView();
-      if (currentView != null) {
-        newView.setFailureDetectionPorts(currentView);
-        newView.setPublicKeys(currentView);
-      }
+    }
+    if (oldView != null) {
+      newView.setFailureDetectionPorts(oldView);
+      newView.setPublicKeys(oldView);
     }
 
     // if there are no membership changes then abort creation of
     // the new view
-    if (joinReqs.isEmpty() && newView.getMembers().equals(gmsJoinLeave.getView().getMembers())) {
+    if (joinReqs.isEmpty() &&
+        newView.getMembers().equals(oldView == null ? Collections.emptyList() : oldView.getMembers())) {
       logger.info("membership hasn't changed - aborting new view {}", newView);
       return;
     }

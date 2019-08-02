@@ -37,7 +37,8 @@ fun CoroutineScope.viewCreator(
 private sealed class State {
     abstract suspend fun setIsCoordinator(
             becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>): State
+            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
+            batchFrequency: Long): State
     abstract suspend fun newViewInstalled(
             newView: NetView,
             filterRequests: Channel<Predicate<DistributionMessage>>)
@@ -46,7 +47,8 @@ private sealed class State {
 private object CoordinatorState : State() {
     override suspend fun setIsCoordinator(
             becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>): State {
+            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
+            batchFrequency: Long): State {
         if (becomeCoordinator) {
             return this
         } else {
@@ -66,9 +68,10 @@ private object CoordinatorState : State() {
 private object NotCoordinatorState : State() {
     override suspend fun setIsCoordinator(
             becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>): State {
+            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
+            batchFrequency: Long): State {
         if (becomeCoordinator) {
-            batchFrequencyRequests.send(VIEW_CREATOR_BATCH_FREQUENCY)
+            batchFrequencyRequests.send(batchFrequency)
             return CoordinatorState
         } else {
             return this
@@ -101,14 +104,15 @@ fun CoroutineScope.viewCreatorCoordinatorState(
         setIsCoordinatorRequests: Channel<Boolean>,
         newViewInstalledRequests: Channel<NetView>,
         filterRequests: Channel<Predicate<DistributionMessage>>,
-        batchFrequencyRequests: Channel<BatchFrequencyMillis>) =
+        batchFrequencyRequests: Channel<BatchFrequencyMillis>,
+        batchFrequency: Long) =
         launch(coroutineContext + CoroutineName("View Creator Coordinator State")) {
             var state: State = NotCoordinatorState
 
             while(true) {
                 select<Unit> {
                     setIsCoordinatorRequests.onReceive {
-                        state = state.setIsCoordinator(it, batchFrequencyRequests)
+                        state = state.setIsCoordinator(it, batchFrequencyRequests, batchFrequency)
                     }
                     newViewInstalledRequests.onReceive {
                         state.newViewInstalled(it, filterRequests)
@@ -123,7 +127,8 @@ fun CoroutineScope.viewCreatorCoordinatorState(
  * (directly or indirectly) started.
  */
 class ViewCreator2(
-        override val coroutineContext: CoroutineContext = EmptyCoroutineContext) : CoroutineScope {
+        override val coroutineContext: CoroutineContext = EmptyCoroutineContext,
+        batchFrequency: Long) : CoroutineScope {
 
     // TODO: figure out if I need to create a new context or if it's ok to reuse parent context directly
 
@@ -139,7 +144,12 @@ class ViewCreator2(
         log("BOOM! Constructed!")
         val messageBatches = timeWindow(messages, snapshotRequests, filterRequests, batchFrequencyRequests)
         viewCreator(messageBatches)
-        viewCreatorCoordinatorState(setIsCoordinatorRequests, newViewInstalledRequests, filterRequests, batchFrequencyRequests)
+        viewCreatorCoordinatorState(
+                setIsCoordinatorRequests,
+                newViewInstalledRequests,
+                filterRequests,
+                batchFrequencyRequests,
+                batchFrequency)
     }
 
     fun submit(msg: DistributionMessage) = runBlocking {
