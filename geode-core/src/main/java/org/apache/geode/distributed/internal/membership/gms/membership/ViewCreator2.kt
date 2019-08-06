@@ -3,132 +3,43 @@ package org.apache.geode.distributed.internal.membership.gms.membership
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.selects.whileSelect
+import org.apache.geode.distributed.DistributedSystemDisconnectedException
 import org.apache.geode.distributed.internal.DistributionMessage
 import org.apache.geode.distributed.internal.membership.NetView
+import org.apache.geode.distributed.internal.membership.gms.interfaces.Locator
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinRequestMessage
 import org.apache.geode.distributed.internal.membership.gms.messages.LeaveRequestMessage
 import org.apache.geode.distributed.internal.membership.gms.messages.RemoveMemberMessage
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
-val VIEW_CREATOR_BATCH_FREQUENCY: Long = 300
-
 /*
  Launch with -Dkotlinx.coroutines.debug JVM option to get coroutine context in thread name
  */
-fun log(msg: String) = println("[${Thread.currentThread().name}] $msg")
+internal fun log(msg: String) = println("[${Thread.currentThread().name}] $msg")
 
-/**
- * This is a coroutine builder for the view creator (coroutine)
- */
-fun CoroutineScope.viewCreator(
-        messageBatches: ReceiveChannel<Collection<DistributionMessage>>) =
-        launch(coroutineContext + CoroutineName("View Creator Coroutine")) {
+internal sealed class ChangeCoordinatorRoleRequest
 
-            while (true) {
-                val msg = messageBatches.receive()
-                if (msg.isNotEmpty())
-                log("received batch: $msg")
-            }
+internal class StartCoordinating(val legacyViewCreator: ViewCreator,
+                                 val locator: Locator) : ChangeCoordinatorRoleRequest() {
 }
 
-private sealed class State {
-    abstract suspend fun setIsCoordinator(
-            becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
-            batchFrequency: Long): State
-    abstract suspend fun newViewInstalled(
-            newView: NetView,
-            filterRequests: Channel<Predicate<DistributionMessage>>)
+internal object StopCoordinating : ChangeCoordinatorRoleRequest() {
 }
 
-private object CoordinatorState : State() {
-    override suspend fun setIsCoordinator(
-            becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
-            batchFrequency: Long): State {
-        if (becomeCoordinator) {
-            return this
-        } else {
-            // Stop producing batches
-            batchFrequencyRequests.send(NO_BATCHES)
-            return NotCoordinatorState
-        }
-    }
-
-    override suspend fun newViewInstalled(
-            newView: NetView,
-            filterRequests: Channel<Predicate<DistributionMessage>>) {
-        // no-op
-    }
-}
-
-private object NotCoordinatorState : State() {
-    override suspend fun setIsCoordinator(
-            becomeCoordinator: Boolean,
-            batchFrequencyRequests: SendChannel<BatchFrequencyMillis>,
-            batchFrequency: Long): State {
-        if (becomeCoordinator) {
-            batchFrequencyRequests.send(batchFrequency)
-            return CoordinatorState
-        } else {
-            return this
-        }
-    }
-
-    override suspend fun newViewInstalled(
-            newView: NetView,
-            filterRequests: Channel<Predicate<DistributionMessage>>) {
-
-        // describe messages to keep: keep those messages whose members are not mentioned in view
-        fun filter(msg: DistributionMessage): Boolean =
-            !when(msg) {
-                is JoinRequestMessage -> newView.contains(msg.memberID)
-                is LeaveRequestMessage -> newView.contains(msg.memberID)
-                is RemoveMemberMessage -> newView.contains(msg.memberID)
-                else -> false // keep all other kinds of message
-            }
-
-        /*
-         When we are not the coordinator, and a new view is installed, use the members
-         in that view to filter out messages that have accumulated. Messages are accumulating
-         because we turned off batch production when we moved into this state (NotCoordinatorState)
-         */
-        filterRequests.send(::filter)
-    }
-}
-
-fun CoroutineScope.viewCreatorCoordinatorState(
-        setIsCoordinatorRequests: Channel<Boolean>,
-        newViewInstalledRequests: Channel<NetView>,
-        filterRequests: Channel<Predicate<DistributionMessage>>,
-        batchFrequencyRequests: Channel<BatchFrequencyMillis>,
-        batchFrequency: Long) =
-        launch(coroutineContext + CoroutineName("View Creator Coordinator State")) {
-            var state: State = NotCoordinatorState
-
-            while(true) {
-                select<Unit> {
-                    setIsCoordinatorRequests.onReceive {
-                        state = state.setIsCoordinator(it, batchFrequencyRequests, batchFrequency)
-                    }
-                    newViewInstalledRequests.onReceive {
-                        state.newViewInstalled(it, filterRequests)
-                    }
-                }
-            }
-        }
+// TODO: Figure out why good ole' java.util.function.Predicate gives compile error when I use it
+typealias Predicate<T> = (T) -> Boolean
 
 /**
  * This class provides convenient communication with the creator coroutine(s) from Java.
- * It's a [CoroutineScope] that can be [destroy]ed to stop all the coroutines it has
+ * It's a [CoroutineScope] that can be [cancel]ed to stop all the coroutines it has
  * (directly or indirectly) started.
  */
-class ViewCreator2(
+internal class ViewCreator2(
         override val coroutineContext: CoroutineContext = EmptyCoroutineContext,
-        batchFrequency: Long) : CoroutineScope {
+        val batchFrequency: Long) : CoroutineScope {
 
     // TODO: figure out if I need to create a new context or if it's ok to reuse parent context directly
 
@@ -136,21 +47,141 @@ class ViewCreator2(
     private val snapshotRequests: Channel<CompletableDeferred<Collection<DistributionMessage>>> =
             Channel()
     private val filterRequests: Channel<Predicate<DistributionMessage>> = Channel()
-    private val batchFrequencyRequests: Channel<BatchFrequencyMillis> = Channel()
-    private val setIsCoordinatorRequests: Channel<Boolean> = Channel()
+    private val changeCoordinatorRoleRequests: Channel<ChangeCoordinatorRoleRequest> = Channel()
     private val newViewInstalledRequests: Channel<NetView> = Channel()
 
     init {
-        log("BOOM! Constructed!")
-        val messageBatches = timeWindow(messages, snapshotRequests, filterRequests, batchFrequencyRequests)
-        viewCreator(messageBatches)
-        viewCreatorCoordinatorState(
-                setIsCoordinatorRequests,
-                newViewInstalledRequests,
-                filterRequests,
-                batchFrequencyRequests,
-                batchFrequency)
+        notCoordinatorState()
     }
+
+    @ObsoleteCoroutinesApi
+    @ExperimentalCoroutinesApi
+    internal fun CoroutineScope.notCoordinatorState(): Job =
+            launch(coroutineContext + CoroutineName("ViewCreator Not Coordinator State Coroutine")) {
+
+                var seen = mutableListOf<DistributionMessage>()
+
+                whileSelect {
+
+                        messages.onReceive {
+                            log("received input: $it")
+                            seen.add(it)
+                            true
+                        }
+
+                        snapshotRequests.onReceive {
+                            log("received snapshot request")
+                            it.complete(seen.toList())
+                            true
+                        }
+
+                        newViewInstalledRequests.onReceive {
+
+                            // describe messages to keep: keep those messages whose members are not mentioned in view
+                            val filter = fun(msg: DistributionMessage):Boolean =
+                                !when (msg) {
+                                    is JoinRequestMessage -> it.contains(msg.memberID)
+                                    is LeaveRequestMessage -> it.contains(msg.memberID)
+                                    is RemoveMemberMessage -> it.contains(msg.memberID)
+                                    else -> false // keep all other kinds of message
+                                }
+
+                            /*
+                             When we are not the coordinator, and a new view is installed, use the members
+                             in that view to filter out messages that have accumulated. Messages are accumulating
+                             because we turned off batch production when we moved into this state (NotCoordinatorState)
+                             */
+                            seen = seen.filter(filter).toMutableList()
+                            true
+                        }
+
+                        changeCoordinatorRoleRequests.onReceive {
+                            when (it) {
+                                is StartCoordinating -> {
+                                    cancel()
+                                    coordinatorState(it)
+                                    false
+                                }
+                                is StopCoordinating -> true
+                            }
+                        }
+                    }
+                }
+
+    @ObsoleteCoroutinesApi
+    @ExperimentalCoroutinesApi
+    internal fun CoroutineScope.coordinatorState(transitionData: StartCoordinating): Job =
+            launch(coroutineContext + CoroutineName("ViewCreator Coordinator State Coroutine")) {
+
+                val legacyViewCreator = transitionData.legacyViewCreator
+                val locator = transitionData.locator
+
+                val ticker: ReceiveChannel<Unit> = kotlinx.coroutines.channels.ticker(batchFrequency)
+
+                var seen = mutableListOf<DistributionMessage>()
+
+                log("starting")
+
+                // TODO: send initial view then go to filtering-unresponsive-members state
+                legacyViewCreator.sendInitialView()
+
+                whileSelect {
+
+                        messages.onReceive {
+                            log("received input: $it")
+                            seen.add(it)
+                            true
+                        }
+
+                        snapshotRequests.onReceive {
+                            log("received snapshot request")
+                            it.complete(seen.toList())
+                            true
+                        }
+
+                        filterRequests.onReceive {
+                            seen = seen.filter(it).toMutableList()
+                            true
+                        }
+
+                        ticker.onReceive {
+                            if (seen.isNotEmpty()) {
+                                log("processing ${seen.size} requests for the next membership view ($seen)")
+                                try {
+                                    // TODO: send view then go to filtering-unresponsive-members state
+                                    legacyViewCreator.createAndSendView(seen)
+                                    seen = mutableListOf()
+                                } catch (e: Throwable) {
+                                    when (e) {
+                                        is GMSJoinLeave.ViewAbandonedException -> {
+                                            // keep seen messages and we'll try again later
+                                        }
+                                        else -> {
+                                            log("exiting")
+                                            cancel()
+                                            notCoordinatorState()
+                                            locator.setIsCoordinator(false)
+                                            legacyViewCreator.informToPendingJoinRequests(seen)
+                                            throw e
+                                        }
+                                    }
+                                }
+                            }
+                            true
+                        }
+
+                        changeCoordinatorRoleRequests.onReceive {
+                            when (it) {
+                                is StartCoordinating -> true
+                                is StopCoordinating -> {
+                                    cancel()
+                                    notCoordinatorState()
+                                    false
+                                }
+                            }
+                        }
+                    }
+                }
 
     fun submit(msg: DistributionMessage) = runBlocking {
         messages.send(msg)
@@ -168,15 +199,16 @@ class ViewCreator2(
 
     /**
      * Call this method to notify view creator that this node has become the coordinator
-     * (or that it has relinquished that role)
-     * @param becomeCoordinator set to true to inform the view creator that this node has assumed
-     * the coordinator role; set to false to inform the view creator that this node has
-     * relinquished that role
      */
-    fun setIsCoordinator(becomeCoordinator: Boolean) = runBlocking {
-        setIsCoordinatorRequests.send(becomeCoordinator)
+    fun startCoordinating(legacyViewCreator: ViewCreator,
+                          locator: Locator) = runBlocking {
+        changeCoordinatorRoleRequests.send(StartCoordinating(legacyViewCreator,locator))
     }
-    
+
+    fun stopCoordinating() = runBlocking {
+        changeCoordinatorRoleRequests.send(StopCoordinating)
+    }
+
     fun newViewInstalled(newView: NetView) = runBlocking {
         newViewInstalledRequests.send(newView)
     }

@@ -846,16 +846,11 @@ public class GMSJoinLeave implements JoinLeave {
           viewRequests,
           localAddress,
           viewAckTimeout,
-          requestCollectionInterval,
           services.getConfig().getMemberTimeout(),
-          services.getLocator(),
-          services.getMessenger()
+          services.getMessenger(),
+          newView
       );
-      viewCreator2.setIsCoordinator(true);
-      if (newView != null) {
-        viewCreator.setInitialView(newView, newView.getNewMembers(), newView.getShutdownMembers(),
-            newView.getCrashedMembers());
-      }
+      viewCreator2.startCoordinating(viewCreator, services.getLocator());
       logger.info("ViewCreator starting on:" + localAddress);
 
       viewCreator.start();
@@ -1662,7 +1657,7 @@ public class GMSJoinLeave implements JoinLeave {
   private void stopCoordinatorServices() {
     if (viewCreator != null && !viewCreator.isShutdown()) {
       logger.debug("Shutting down ViewCreator");
-      viewCreator2.setIsCoordinator(false);
+      viewCreator2.stopCoordinating();
       viewCreator.shutdown();
       try {
         viewCreator.join(1000);

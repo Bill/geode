@@ -25,7 +25,6 @@ import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.DistributionMessage;
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember;
 import org.apache.geode.distributed.internal.membership.NetView;
-import org.apache.geode.distributed.internal.membership.gms.interfaces.Locator;
 import org.apache.geode.distributed.internal.membership.gms.interfaces.Messenger;
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinRequestMessage;
 import org.apache.geode.distributed.internal.membership.gms.messages.JoinResponseMessage;
@@ -48,17 +47,10 @@ class ViewCreator extends LoggingThread {
 
   private final GMSJoinLeave gmsJoinLeave;
   private final Logger logger;
-  private final Locator locator;
   private final Messenger messenger;
   private final InternalDistributedMember localAddress;
 
-  /*
-   Work queue
-   */
-  private final List<DistributionMessage> viewRequests;
-
   private final int viewAckTimeout;
-  private final long requestCollectionInterval;
   private final long memberTimeout;
 
   /**
@@ -98,28 +90,26 @@ class ViewCreator extends LoggingThread {
   private Set<InternalDistributedMember> initialRemovals;
 
   ViewCreator(final String name,
-              final GMSJoinLeave gmsJoinLeave,
-              final Logger logger,
-              final List<DistributionMessage> viewRequests,
-              final InternalDistributedMember localAddress,
-              final int viewAckTimeout,
-              final long requestCollectionInterval,
-              final long memberTimeout,
-              final Locator locator,
-              final Messenger messenger) {
+               final GMSJoinLeave gmsJoinLeave,
+               final Logger logger,
+               final InternalDistributedMember localAddress,
+               final int viewAckTimeout,
+               final long memberTimeout,
+               final Messenger messenger,
+               final NetView initialView) {
     super(name);
     this.gmsJoinLeave = gmsJoinLeave;
     this.logger = logger;
-    this.viewRequests = viewRequests;
     this.localAddress = localAddress;
     this.viewAckTimeout = viewAckTimeout;
-    this.requestCollectionInterval = requestCollectionInterval;
     this.lastConflictingView = null;
 
     this.memberTimeout = memberTimeout;
-    this.locator = locator;
     this.messenger = messenger;
-
+    if (initialView != null) {
+      setInitialView(initialView, initialView.getNewMembers(), initialView.getShutdownMembers(),
+          initialView.getCrashedMembers());
+    }
   }
 
   void setLastConflictingView(final NetView lastConflictingView) {
@@ -128,10 +118,6 @@ class ViewCreator extends LoggingThread {
 
   void shutdown() {
     setShutdownFlag();
-    synchronized (viewRequests) {
-      viewRequests.notifyAll();
-      interrupt();
-    }
   }
 
   boolean isShutdown() {
@@ -153,7 +139,7 @@ class ViewCreator extends LoggingThread {
    * @param leaving - members leaving in this view
    * @param removals - members crashed in this view
    */
-  synchronized void setInitialView(NetView newView, List<InternalDistributedMember> newMembers,
+  void setInitialView(NetView newView, List<InternalDistributedMember> newMembers,
       Set<InternalDistributedMember> leaving, Set<InternalDistributedMember> removals) {
     this.initialView = newView;
     this.initialJoins = newMembers;
@@ -161,7 +147,7 @@ class ViewCreator extends LoggingThread {
     this.initialRemovals = removals;
   }
 
-  private void sendInitialView() {
+  protected void sendInitialView() {
     boolean retry;
     do {
       retry = false;
@@ -174,18 +160,8 @@ class ViewCreator extends LoggingThread {
           processPreparedView(v);
         }
         try {
-          NetView iView;
-          List<InternalDistributedMember> iJoins;
-          Set<InternalDistributedMember> iLeaves;
-          Set<InternalDistributedMember> iRemoves;
-          synchronized (this) {
-            iView = initialView;
-            iJoins = initialJoins;
-            iLeaves = initialLeaving;
-            iRemoves = initialRemovals;
-          }
-          if (iView != null) {
-            prepareAndSendView(iView, iJoins, iLeaves, iRemoves);
+          if (initialView != null) {
+            prepareAndSendView(initialView, initialJoins, initialLeaving, initialRemovals);
           }
         } finally {
           setInitialView(null, null, null, null);
@@ -211,7 +187,7 @@ class ViewCreator extends LoggingThread {
    * marks this ViewCreator as being shut down. It may be some short amount of time before the
    * ViewCreator thread exits.
    */
-  private void setShutdownFlag() {
+  protected void setShutdownFlag() {
     shutdown = true;
   }
 
@@ -258,105 +234,11 @@ class ViewCreator extends LoggingThread {
       }
 
       // use the new view as the initial view
-      synchronized (this) {
-        setInitialView(newView, newMembers, initialLeaving, initialRemovals);
-      }
+      setInitialView(newView, newMembers, initialLeaving, initialRemovals);
     }
   }
 
-  @Override
-  public void run() {
-    List<DistributionMessage> requests = null;
-    logger.info("View Creator thread is starting");
-    sendInitialView();
-    long okayToCreateView = System.currentTimeMillis() + requestCollectionInterval;
-    try {
-      for (;;) {
-        synchronized (viewRequests) {
-          if (shutdown) {
-            return;
-          }
-          if (viewRequests.isEmpty()) {
-            try {
-              logger.debug("View Creator is waiting for requests");
-              waiting = true;
-              viewRequests.wait();
-            } catch (InterruptedException e) {
-              return;
-            } finally {
-              waiting = false;
-            }
-            if (shutdown || Thread.currentThread().isInterrupted()) {
-              return;
-            }
-            if (viewRequests.size() == 1) {
-              // start the timer when we have only one request because
-              // concurrent startup / shutdown of multiple members is
-              // a common occurrence
-              okayToCreateView = System.currentTimeMillis() + requestCollectionInterval;
-              continue;
-            }
-          } else {
-            long timeRemaining = okayToCreateView - System.currentTimeMillis();
-            if (timeRemaining > 0) {
-              // sleep to let more requests arrive
-              try {
-                viewRequests.wait(Math.min(100, timeRemaining));
-                continue;
-              } catch (InterruptedException e) {
-                return;
-              }
-            } else {
-              // time to create a new membership view
-              if (requests == null) {
-                requests = new ArrayList<DistributionMessage>(viewRequests);
-              } else {
-                requests.addAll(viewRequests);
-              }
-              viewRequests.clear();
-              okayToCreateView = System.currentTimeMillis() + requestCollectionInterval;
-            }
-          }
-        } // synchronized
-        if (requests != null && !requests.isEmpty()) {
-          logger.info("View Creator is processing {} requests for the next membership view ({})",
-              requests.size(), requests);
-          try {
-            createAndSendView(requests);
-            if (shutdown) {
-              return;
-            }
-          } catch (GMSJoinLeave.ViewAbandonedException e) {
-            synchronized (viewRequests) {
-              viewRequests.addAll(requests);
-            }
-            // pause before reattempting so that another view creator can either finish
-            // or fail
-            try {
-              sleep(memberTimeout);
-            } catch (InterruptedException e2) {
-              setShutdownFlag();
-            }
-          } catch (DistributedSystemDisconnectedException e) {
-            setShutdownFlag();
-          } catch (InterruptedException e) {
-            logger.info("View Creator thread interrupted");
-            setShutdownFlag();
-          }
-          requests = null;
-        }
-      }
-    } finally {
-      logger.info("View Creator thread is exiting");
-      setShutdownFlag();
-      informToPendingJoinRequests();
-      if (locator != null) {
-        locator.setIsCoordinator(false);
-      }
-    }
-  }
-
-  synchronized boolean informToPendingJoinRequests() {
+  boolean informToPendingJoinRequests(final Collection<DistributionMessage> viewRequests) {
 
     if (!shutdown) {
       return false;
@@ -367,20 +249,18 @@ class ViewCreator extends LoggingThread {
     }
 
     ArrayList<JoinRequestMessage> requests = new ArrayList<>();
-    synchronized (viewRequests) {
-      if (viewRequests.isEmpty()) {
-        return false;
-      }
-      for (Iterator<DistributionMessage> iterator = viewRequests.iterator(); iterator
-          .hasNext();) {
-        DistributionMessage msg = iterator.next();
-        switch (msg.getDSFID()) {
-          case JOIN_REQUEST:
-            requests.add((JoinRequestMessage) msg);
-            break;
-          default:
-            break;
-        }
+    if (viewRequests.isEmpty()) {
+      return false;
+    }
+    for (Iterator<DistributionMessage> iterator = viewRequests.iterator(); iterator
+        .hasNext(); ) {
+      DistributionMessage msg = iterator.next();
+      switch (msg.getDSFID()) {
+        case JOIN_REQUEST:
+          requests.add((JoinRequestMessage) msg);
+          break;
+        default:
+          break;
       }
     }
 
@@ -403,7 +283,7 @@ class ViewCreator extends LoggingThread {
    * false if the view cannot be prepared successfully, true otherwise
    *
    */
-  void createAndSendView(List<DistributionMessage> requests)
+  protected void createAndSendView(Collection<DistributionMessage> requests)
       throws InterruptedException, GMSJoinLeave.ViewAbandonedException {
     List<InternalDistributedMember> joinReqs = new ArrayList<>(10);
     Map<InternalDistributedMember, Integer> joinPorts = new HashMap<>(10);
@@ -582,10 +462,8 @@ class ViewCreator extends LoggingThread {
       unresponsive.removeAll(leaveReqs);
       if (!unresponsive.isEmpty()) {
         removeHealthyMembers(unresponsive);
-        synchronized (viewRequests) {
-          // now lets get copy of it in viewRequests sync, as other thread might be accessing it
-          unresponsive = new HashSet<>(unresponsive);
-        }
+        // now lets get copy of it in viewRequests sync, as other thread might be accessing it
+        unresponsive = new HashSet<>(unresponsive);
       }
 
       logger.debug("unresponsive members that could not be reached: {}", unresponsive);
@@ -725,11 +603,8 @@ class ViewCreator extends LoggingThread {
         public InternalDistributedMember call() throws Exception {
           boolean available = gmsJoinLeave.checkIfAvailable(mbr);
 
-          synchronized (viewRequests) {
-            if (available) {
-              suspects.remove(mbr);
-            }
-            viewRequests.notifyAll();
+          if (available) {
+            suspects.remove(mbr);
           }
           return mbr;
         }
