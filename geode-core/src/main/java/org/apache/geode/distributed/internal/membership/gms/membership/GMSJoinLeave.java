@@ -843,7 +843,6 @@ public class GMSJoinLeave implements JoinLeave {
           "Geode Membership View Creator",
           this,
           logger,
-          viewRequests,
           localAddress,
           viewAckTimeout,
           services.getConfig().getMemberTimeout(),
