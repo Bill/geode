@@ -192,12 +192,12 @@ public class GMSJoinLeave implements JoinLeave {
   /**
    * collects responses to new views
    */
-  ViewReplyProcessor viewProcessor = new ViewReplyProcessor(false);
+  ViewReplyProcessor viewProcessor;
 
   /**
    * collects responses to view preparation messages
    */
-  ViewReplyProcessor prepareProcessor = new ViewReplyProcessor(true);
+  ViewReplyProcessor prepareProcessor;
 
   /**
    * whether quorum checks can cause a forced-disconnect
@@ -1838,7 +1838,7 @@ public class GMSJoinLeave implements JoinLeave {
 
   @Override
   public void init(Services s) {
-    this.services = s;
+    services = s;
 
     DistributionConfig dc = services.getConfig().getDistributionConfig();
     if (dc.getMcastPort() != 0 && StringUtils.isBlank(dc.getLocators())
@@ -1870,7 +1870,10 @@ public class GMSJoinLeave implements JoinLeave {
     ackCollectionTimeout = Integer
         .getInteger(DistributionConfig.GEMFIRE_PREFIX + "VIEW_ACK_TIMEOUT", ackCollectionTimeout)
         .intValue();
-    this.viewAckTimeout = ackCollectionTimeout;
+    viewAckTimeout = ackCollectionTimeout;
+
+    viewProcessor = new ViewReplyProcessor("New View", services, viewAckTimeout, logger);
+    prepareProcessor = new ViewReplyProcessor("View Preparation", services, viewAckTimeout, logger);
 
     this.quorumRequired =
         services.getConfig().getDistributionConfig().getEnableNetworkPartitionDetection();
@@ -1907,163 +1910,6 @@ public class GMSJoinLeave implements JoinLeave {
 
   protected boolean testPrepareProcessorWaiting() {
     return prepareProcessor.isWaiting();
-  }
-
-  class ViewReplyProcessor {
-    volatile int viewId = -1;
-    final Set<InternalDistributedMember> notRepliedYet = new HashSet<>();
-    NetView conflictingView;
-    InternalDistributedMember conflictingViewSender;
-    volatile boolean waiting;
-    final boolean isPrepareViewProcessor;
-    final Set<InternalDistributedMember> pendingRemovals = new HashSet<>();
-
-    ViewReplyProcessor(boolean forPreparation) {
-      this.isPrepareViewProcessor = forPreparation;
-    }
-
-    synchronized void initialize(int viewId, Set<InternalDistributedMember> recips) {
-      waiting = true;
-      this.viewId = viewId;
-      notRepliedYet.clear();
-      notRepliedYet.addAll(recips);
-      conflictingView = null;
-      pendingRemovals.clear();
-    }
-
-    boolean isWaiting() {
-      return waiting;
-    }
-
-    synchronized void processPendingRequests(Set<InternalDistributedMember> pendingLeaves,
-        Set<InternalDistributedMember> pendingRemovals) {
-      // there's no point in waiting for members who have already
-      // requested to leave or who have been declared crashed.
-      // We don't want to mix the two because pending removals
-      // aren't reflected as having crashed in the current view
-      // and need to cause a new view to be generated
-      for (InternalDistributedMember mbr : pendingLeaves) {
-        notRepliedYet.remove(mbr);
-      }
-      for (InternalDistributedMember mbr : pendingRemovals) {
-        if (this.notRepliedYet.contains(mbr)) {
-          this.pendingRemovals.add(mbr);
-        }
-      }
-    }
-
-    synchronized void memberSuspected(InternalDistributedMember suspect) {
-      if (waiting) {
-        // we will do a final check on this member if it hasn't already
-        // been done, so stop waiting for it now
-        logger.debug("view response processor recording suspect status for {}", suspect);
-        if (notRepliedYet.contains(suspect) && !pendingRemovals.contains(suspect)) {
-          pendingRemovals.add(suspect);
-          checkIfDone();
-        }
-      }
-    }
-
-    synchronized void processLeaveRequest(InternalDistributedMember mbr) {
-      if (waiting) {
-        logger.debug("view response processor recording leave request for {}", mbr);
-        stopWaitingFor(mbr);
-      }
-    }
-
-    synchronized void processRemoveRequest(InternalDistributedMember mbr) {
-      if (waiting) {
-        logger.debug("view response processor recording remove request for {}", mbr);
-        pendingRemovals.add(mbr);
-        checkIfDone();
-      }
-    }
-
-    synchronized void processViewResponse(int viewId, InternalDistributedMember sender,
-        NetView conflictingView) {
-      if (!waiting) {
-        return;
-      }
-
-      if (viewId == this.viewId) {
-        if (conflictingView != null) {
-          this.conflictingViewSender = sender;
-          this.conflictingView = conflictingView;
-        }
-
-        logger.debug("view response processor recording response for {}", sender);
-        stopWaitingFor(sender);
-      }
-    }
-
-    /**
-     * call with synchronized(this)
-     */
-    private void stopWaitingFor(InternalDistributedMember mbr) {
-      notRepliedYet.remove(mbr);
-      checkIfDone();
-    }
-
-    /**
-     * call with synchronized(this)
-     */
-    private void checkIfDone() {
-      if (notRepliedYet.isEmpty()
-          || (pendingRemovals != null && pendingRemovals.containsAll(notRepliedYet))) {
-        logger.debug("All anticipated view responses received - notifying waiting thread");
-        waiting = false;
-        notifyAll();
-      } else {
-        logger.debug("Still waiting for these view replies: {}", notRepliedYet);
-      }
-    }
-
-    Set<InternalDistributedMember> waitForResponses() throws InterruptedException {
-      Set<InternalDistributedMember> result;
-      long endOfWait = System.currentTimeMillis() + viewAckTimeout;
-      try {
-        while (System.currentTimeMillis() < endOfWait
-            && (!services.getCancelCriterion().isCancelInProgress())) {
-          try {
-            synchronized (this) {
-              if (!waiting || this.notRepliedYet.isEmpty() || this.conflictingView != null) {
-                break;
-              }
-              wait(1000);
-            }
-          } catch (InterruptedException e) {
-            logger.debug("Interrupted while waiting for view responses");
-            throw e;
-          }
-        }
-      } finally {
-        synchronized (this) {
-          if (!this.waiting) {
-            // if we've set waiting to false due to incoming messages then
-            // we've discounted receiving any other responses from the
-            // remaining members due to leave/crash notification
-            result = new HashSet<>(pendingRemovals);
-          } else {
-            result = new HashSet<>(this.notRepliedYet);
-            result.addAll(pendingRemovals);
-            this.waiting = false;
-          }
-        }
-      }
-      return result;
-    }
-
-    NetView getConflictingView() {
-      return this.conflictingView;
-    }
-
-    InternalDistributedMember getConflictingViewSender() {
-      return this.conflictingViewSender;
-    }
-
-    synchronized Set<InternalDistributedMember> getUnresponsiveMembers() {
-      return new HashSet<>(this.notRepliedYet);
-    }
   }
 
   /**

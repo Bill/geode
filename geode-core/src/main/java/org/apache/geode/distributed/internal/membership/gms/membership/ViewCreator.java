@@ -632,23 +632,22 @@ class ViewCreator extends LoggingThread {
 
       // now wait for the tasks to do their work
       long waitTime = giveUpTime - System.currentTimeMillis();
-      synchronized (viewRequests) {
-        while (waitTime > 0) {
-          logger.debug("removeHealthyMembers: mbrs" + suspects.size());
+      while (waitTime > 0) {
+        logger.debug("removeHealthyMembers: mbrs" + suspects.size());
 
-          filterMembers(suspects, newRemovals, REMOVE_MEMBER_REQUEST);
-          filterMembers(suspects, newLeaves, LEAVE_REQUEST_MESSAGE);
-          newRemovals.removeAll(newLeaves);
+        filterMembers(suspects, newRemovals, REMOVE_MEMBER_REQUEST);
+        filterMembers(suspects, newLeaves, LEAVE_REQUEST_MESSAGE);
+        newRemovals.removeAll(newLeaves);
 
-          suspects.removeAll(newLeaves);
+        suspects.removeAll(newLeaves);
 
-          if (suspects.isEmpty() || newRemovals.containsAll(suspects)) {
-            break;
-          }
-
-          viewRequests.wait(waitTime);
-          waitTime = giveUpTime - System.currentTimeMillis();
+        if (suspects.isEmpty() || newRemovals.containsAll(suspects)) {
+          break;
         }
+
+        // TODO: put a delay() in here so we don't spin
+
+        waitTime = giveUpTime - System.currentTimeMillis();
       }
     } finally {
       svc.shutdownNow();

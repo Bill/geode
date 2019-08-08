@@ -2,10 +2,7 @@ package org.apache.geode.distributed.internal.membership.gms.membership
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.selects.whileSelect
-import org.apache.geode.distributed.DistributedSystemDisconnectedException
 import org.apache.geode.distributed.internal.DistributionMessage
 import org.apache.geode.distributed.internal.membership.NetView
 import org.apache.geode.distributed.internal.membership.gms.interfaces.Locator
@@ -34,15 +31,16 @@ typealias Predicate<T> = (T) -> Boolean
 
 /**
  * This class provides convenient communication with the creator coroutine(s) from Java.
- * It's a [CoroutineScope] that can be [cancel]ed to stop all the coroutines it has
+ * It has a [CoroutineScope] that can be [cancel]ed to stop all the coroutines it has
  * (directly or indirectly) started.
  */
 internal class ViewCreator2(
-        override val coroutineContext: CoroutineContext = EmptyCoroutineContext,
-        val batchFrequency: Long) : CoroutineScope {
+        coroutineContext: CoroutineContext = EmptyCoroutineContext,
+        val batchFrequency: Long) {
 
     // TODO: figure out if I need to create a new context or if it's ok to reuse parent context directly
 
+    private val coroutineScope = CoroutineScope(coroutineContext)
     private val messages: Channel<DistributionMessage> = Channel()
     private val snapshotRequests: Channel<CompletableDeferred<Collection<DistributionMessage>>> =
             Channel()
@@ -56,22 +54,22 @@ internal class ViewCreator2(
 
     @ObsoleteCoroutinesApi
     @ExperimentalCoroutinesApi
-    internal fun CoroutineScope.notCoordinatorState(): Job =
-            launch(coroutineContext + CoroutineName("ViewCreator Not Coordinator State Coroutine")) {
+    internal fun notCoordinatorState(): Job =
+            coroutineScope.launch(CoroutineName("ViewCreator Not Coordinator State Coroutine")) {
 
-                var seen = mutableListOf<DistributionMessage>()
+                var messageBuffer = mutableListOf<DistributionMessage>()
 
                 whileSelect {
 
                         messages.onReceive {
                             log("received input: $it")
-                            seen.add(it)
+                            messageBuffer.add(it)
                             true
                         }
 
                         snapshotRequests.onReceive {
                             log("received snapshot request")
-                            it.complete(seen.toList())
+                            it.complete(messageBuffer.toList())
                             true
                         }
 
@@ -91,15 +89,14 @@ internal class ViewCreator2(
                              in that view to filter out messages that have accumulated. Messages are accumulating
                              because we turned off batch production when we moved into this state (NotCoordinatorState)
                              */
-                            seen = seen.filter(filter).toMutableList()
+                            messageBuffer = messageBuffer.filter(filter).toMutableList()
                             true
                         }
 
                         changeCoordinatorRoleRequests.onReceive {
                             when (it) {
                                 is StartCoordinating -> {
-                                    cancel()
-                                    coordinatorState(it)
+                                    coordinatorState(it, messageBuffer)
                                     false
                                 }
                                 is StopCoordinating -> true
@@ -110,15 +107,13 @@ internal class ViewCreator2(
 
     @ObsoleteCoroutinesApi
     @ExperimentalCoroutinesApi
-    internal fun CoroutineScope.coordinatorState(transitionData: StartCoordinating): Job =
-            launch(coroutineContext + CoroutineName("ViewCreator Coordinator State Coroutine")) {
+    internal fun coordinatorState(transitionData: StartCoordinating, messageBufferArg: MutableCollection<DistributionMessage>): Job =
+            coroutineScope.launch(CoroutineName("ViewCreator Coordinator State Coroutine")) {
 
                 val legacyViewCreator = transitionData.legacyViewCreator
                 val locator = transitionData.locator
 
-                val ticker: ReceiveChannel<Unit> = kotlinx.coroutines.channels.ticker(batchFrequency)
-
-                var seen = mutableListOf<DistributionMessage>()
+                var messageBuffer = messageBufferArg
 
                 log("starting")
 
@@ -129,28 +124,28 @@ internal class ViewCreator2(
 
                         messages.onReceive {
                             log("received input: $it")
-                            seen.add(it)
+                            messageBuffer.add(it)
                             true
                         }
 
                         snapshotRequests.onReceive {
                             log("received snapshot request")
-                            it.complete(seen.toList())
+                            it.complete(messageBuffer.toList())
                             true
                         }
 
                         filterRequests.onReceive {
-                            seen = seen.filter(it).toMutableList()
+                            messageBuffer = messageBuffer.filter(it).toMutableList()
                             true
                         }
 
-                        ticker.onReceive {
-                            if (seen.isNotEmpty()) {
-                                log("processing ${seen.size} requests for the next membership view ($seen)")
+                        onTimeout(batchFrequency) {
+                            if (messageBuffer.isNotEmpty()) {
+                                log("processing ${messageBuffer.size} requests for the next membership view ($messageBuffer)")
                                 try {
                                     // TODO: send view then go to filtering-unresponsive-members state
-                                    legacyViewCreator.createAndSendView(seen)
-                                    seen = mutableListOf()
+                                    legacyViewCreator.createAndSendView(messageBuffer)
+                                    messageBuffer = mutableListOf()
                                 } catch (e: Throwable) {
                                     when (e) {
                                         is GMSJoinLeave.ViewAbandonedException -> {
@@ -158,10 +153,9 @@ internal class ViewCreator2(
                                         }
                                         else -> {
                                             log("exiting")
-                                            cancel()
                                             notCoordinatorState()
                                             locator.setIsCoordinator(false)
-                                            legacyViewCreator.informToPendingJoinRequests(seen)
+                                            legacyViewCreator.informToPendingJoinRequests(messageBuffer)
                                             throw e
                                         }
                                     }
@@ -174,7 +168,6 @@ internal class ViewCreator2(
                             when (it) {
                                 is StartCoordinating -> true
                                 is StopCoordinating -> {
-                                    cancel()
                                     notCoordinatorState()
                                     false
                                 }
