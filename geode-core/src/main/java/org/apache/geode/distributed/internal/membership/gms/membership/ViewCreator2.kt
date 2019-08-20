@@ -44,7 +44,6 @@ internal class ViewCreator2(
     private val messages: Channel<DistributionMessage> = Channel()
     private val snapshotRequests: Channel<CompletableDeferred<Collection<DistributionMessage>>> =
             Channel()
-    private val filterRequests: Channel<Predicate<DistributionMessage>> = Channel()
     private val changeCoordinatorRoleRequests: Channel<ChangeCoordinatorRoleRequest> = Channel()
     private val newViewInstalledRequests: Channel<NetView> = Channel()
 
@@ -54,10 +53,10 @@ internal class ViewCreator2(
 
     @ObsoleteCoroutinesApi
     @ExperimentalCoroutinesApi
-    internal fun notCoordinatorState(): Job =
+    internal fun notCoordinatorState(messageBufferArg: MutableCollection<DistributionMessage> = mutableListOf()): Job =
             coroutineScope.launch(CoroutineName("ViewCreator Not Coordinator State Coroutine")) {
 
-                var messageBuffer = mutableListOf<DistributionMessage>()
+                var messageBuffer = messageBufferArg
 
                 whileSelect {
 
@@ -122,66 +121,66 @@ internal class ViewCreator2(
 
                 whileSelect {
 
-                        messages.onReceive {
-                            log("received input: $it")
-                            messageBuffer.add(it)
-                            true
-                        }
+                    messages.onReceive {
+                        log("received input: $it")
+                        messageBuffer.add(it)
+                        true
+                    }
 
-                        snapshotRequests.onReceive {
-                            log("received snapshot request")
-                            it.complete(messageBuffer.toList())
-                            true
-                        }
+                    snapshotRequests.onReceive {
+                        log("received snapshot request")
+                        it.complete(messageBuffer.toList())
+                        true
+                    }
 
-                        filterRequests.onReceive {
-                            messageBuffer = messageBuffer.filter(it).toMutableList()
-                            true
-                        }
+                    newViewInstalledRequests.onReceive {
+                        // no-op
+                        true
+                    }
 
-                        onTimeout(batchFrequency) {
-                            if (messageBuffer.isNotEmpty()) {
-                                log("processing ${messageBuffer.size} requests for the next membership view ($messageBuffer)")
-                                try {
-                                    // TODO: send view then go to filtering-unresponsive-members state
-                                    legacyViewCreator.createAndSendView(messageBuffer)
-                                    messageBuffer = mutableListOf()
-                                } catch (e: Throwable) {
-                                    when (e) {
-                                        is GMSJoinLeave.ViewAbandonedException -> {
-                                            // keep seen messages and we'll try again later
-                                        }
-                                        else -> {
-                                            log("exiting")
-                                            notCoordinatorState()
-                                            locator.setIsCoordinator(false)
-                                            legacyViewCreator.informToPendingJoinRequests(messageBuffer)
-                                            throw e
-                                        }
+                    onTimeout(batchFrequency) {
+                        if (messageBuffer.isNotEmpty()) {
+                            log("processing ${messageBuffer.size} requests for the next membership view ($messageBuffer)")
+                            try {
+                                // TODO: send view then go to filtering-unresponsive-members state
+                                legacyViewCreator.createAndSendView(messageBuffer)
+                                messageBuffer = mutableListOf()
+                            } catch (e: Throwable) {
+                                when (e) {
+                                    is GMSJoinLeave.ViewAbandonedException -> {
+                                        // keep seen messages and we'll try again later
+                                    }
+                                    else -> {
+                                        log("exiting")
+                                        notCoordinatorState()
+                                        locator.setIsCoordinator(false)
+                                        legacyViewCreator.informToPendingJoinRequests(messageBuffer)
+                                        throw e
                                     }
                                 }
                             }
-                            true
                         }
+                        true
+                    }
 
-                        changeCoordinatorRoleRequests.onReceive {
-                            when (it) {
-                                is StartCoordinating -> true
-                                is StopCoordinating -> {
-                                    notCoordinatorState()
-                                    false
-                                }
+                    changeCoordinatorRoleRequests.onReceive {
+                        when (it) {
+                            is StartCoordinating -> true
+                            is StopCoordinating -> {
+                                notCoordinatorState(messageBuffer)
+                                false
                             }
                         }
                     }
                 }
+            }
 
     fun submit(msg: DistributionMessage) = runBlocking {
         messages.send(msg)
     }
 
     /**
-     * request-respone
+     * request-response
      */
     fun snapshot(): Collection<DistributionMessage> = runBlocking {
         with(CompletableDeferred<Collection<DistributionMessage>>()) {
