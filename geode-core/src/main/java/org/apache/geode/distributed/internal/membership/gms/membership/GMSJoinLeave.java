@@ -1872,8 +1872,12 @@ public class GMSJoinLeave implements JoinLeave {
         .intValue();
     viewAckTimeout = ackCollectionTimeout;
 
-    viewProcessor = new ViewReplyProcessor("New View", services, viewAckTimeout, logger);
-    prepareProcessor = new ViewReplyProcessor("View Preparation", services, viewAckTimeout, logger);
+    final ExecutorService executor =
+        LoggingExecutors.newSingleThreadExecutor("View Creator 2 Thread#", true);
+    final ExecutorCoroutineDispatcher dispatcher = ExecutorsKt.from(executor);
+
+    viewProcessor = new ViewReplyProcessor("New View", services, viewAckTimeout, logger, dispatcher);
+    prepareProcessor = new ViewReplyProcessor("View Preparation", services, viewAckTimeout, logger, dispatcher);
 
     this.quorumRequired =
         services.getConfig().getDistributionConfig().getEnableNetworkPartitionDetection();

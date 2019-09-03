@@ -175,6 +175,7 @@ internal class ViewCreator2(
                 }
             }
 
+    // TODO: consider if we might need to runBlocking(coroutineScope.coroutineContext)
     fun submit(msg: DistributionMessage) = runBlocking {
         messages.send(msg)
     }

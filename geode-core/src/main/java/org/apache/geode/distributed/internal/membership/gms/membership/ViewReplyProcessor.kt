@@ -1,5 +1,8 @@
 package org.apache.geode.distributed.internal.membership.gms.membership
 
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.whileSelect
 import java.util.HashSet
 
 import org.apache.logging.log4j.Logger
@@ -7,11 +10,88 @@ import org.apache.logging.log4j.Logger
 import org.apache.geode.distributed.internal.membership.InternalDistributedMember
 import org.apache.geode.distributed.internal.membership.NetView
 import org.apache.geode.distributed.internal.membership.gms.Services
+import kotlin.coroutines.CoroutineContext
+
+internal sealed class ChangeIsWaitingRoleRequest
+
+internal class StartWaiting(val viewId: Int, val recips: Set<InternalDistributedMember>) : ChangeIsWaitingRoleRequest() {
+}
+
+internal object StopWaiting : ChangeIsWaitingRoleRequest() {
+}
 
 internal class ViewReplyProcessor(val name: String,
                                   val services: Services,
                                   val viewAckTimeout: Int,
-                                  val logger: Logger) {
+                                  val logger: Logger,
+                                  coroutineContext: CoroutineContext) {
+
+    private val coroutineScope = CoroutineScope(coroutineContext)
+
+    private val changeIsWaitingRequests: Channel<ChangeIsWaitingRoleRequest> = Channel()
+
+
+    init {
+        notWaiting()
+    }
+
+    internal fun notWaiting(
+            notRepliedYet: MutableSet<InternalDistributedMember> = HashSet(),
+            pendingRemovals: MutableSet<InternalDistributedMember> = HashSet()
+    ): Job =
+            coroutineScope.launch(CoroutineName("View Reply Processor: $name")) {
+
+
+                whileSelect {
+
+                    changeIsWaitingRequests.onReceive {
+                        when (it) {
+                            is StartWaiting -> {
+                                waiting(it.viewId, it.recips, notRepliedYet, pendingRemovals)
+                                false
+                            }
+                            is StopWaiting -> true
+                        }
+                    }
+                }
+
+
+            }
+
+    internal fun waiting(
+            viewId: Int,
+            recips: Set<InternalDistributedMember>,
+            notRepliedYet: MutableSet<InternalDistributedMember>,
+            pendingRemovals: MutableSet<InternalDistributedMember>): Job =
+            coroutineScope.launch(CoroutineName("View Reply Processor: $name")) {
+
+                var conflictingView: NetView? = null
+                var conflictingViewSender: InternalDistributedMember? = null
+
+                notRepliedYet.clear()
+                notRepliedYet.addAll(recips)
+                pendingRemovals.clear()
+
+                whileSelect {
+
+
+                    //stuff
+
+                    changeIsWaitingRequests.onReceive {
+                        when (it) {
+                            is StartWaiting -> true
+                            is StopWaiting -> {
+                                notWaiting(notRepliedYet, pendingRemovals)
+                                false
+                            }
+                        }
+                    }
+
+                }
+
+
+            }
+
     @Volatile
     var viewId = -1
     val notRepliedYet: MutableSet<InternalDistributedMember> = HashSet()
@@ -24,14 +104,9 @@ internal class ViewReplyProcessor(val name: String,
     val unresponsiveMembers: Set<InternalDistributedMember>
         @Synchronized get() = HashSet(this.notRepliedYet)
 
-    @Synchronized
-    fun initialize(viewId: Int, recips: Set<InternalDistributedMember>) {
-        isWaiting = true
-        this.viewId = viewId
-        notRepliedYet.clear()
-        notRepliedYet.addAll(recips)
-        conflictingView = null
-        pendingRemovals.clear()
+
+    fun initialize(viewId: Int, recips: Set<InternalDistributedMember>) = runBlocking {
+        changeIsWaitingRequests.send(StartWaiting(viewId,recips))
     }
 
     @Synchronized
