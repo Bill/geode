@@ -29,8 +29,6 @@ import org.apache.geode.CancelException;
 import org.apache.geode.DataSerializable;
 import org.apache.geode.DataSerializer;
 import org.apache.geode.SystemFailure;
-import org.apache.geode.distributed.internal.DistributionConfig;
-import org.apache.geode.distributed.internal.DistributionConfigImpl;
 import org.apache.geode.logging.internal.executors.LoggingExecutors;
 import org.apache.geode.logging.internal.executors.LoggingThread;
 import org.apache.geode.logging.internal.log4j.api.LogService;
@@ -63,11 +61,6 @@ public class TcpServerDependenciesTest {
 
               // TODO - cancel excpetion
               .or(type(CancelException.class))
-
-              // TODO - config
-              .or(type(DistributionConfigImpl.class))
-              .or(type(DistributionConfig.class))
-
 
               // TODO - god classes
               .or(type(SystemFailure.class))

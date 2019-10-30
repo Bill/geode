@@ -205,7 +205,7 @@ public class TCPClientSSLIntegrationTest {
         DistributionConfigImpl distributionConfig, RestartableTcpHandler handler,
         PoolStatHelper poolHelper,
         String threadName) {
-      super(port, bind_address, sslConfig, distributionConfig, handler, threadName,
+      super(port, bind_address, handler, threadName,
           (socket, input, firstByte) -> false, DistributionStats::getStatTime,
           TcpServerFactory.createExecutorServiceSupplier(poolHelper),
           getSocketCreator(getDistributionConfig(sslConfig, distributionConfig)));

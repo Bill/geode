@@ -33,7 +33,7 @@ public class TcpServerFactoryTest {
   public void createsATcpServer() {
     TcpServerFactory factory = new TcpServerFactory();
     SocketCreatorFactory.setDistributionConfig(new DistributionConfigImpl(new Properties()));
-    TcpServer server = factory.makeTcpServer(80, null, null, null, null, null, null, null);
+    TcpServer server = factory.makeTcpServer(80, null, null, null, null, null);
     assertTrue(server != null);
   }
 }

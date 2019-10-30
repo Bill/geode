@@ -28,7 +28,6 @@ import java.net.SocketTimeoutException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
@@ -43,7 +42,6 @@ import org.apache.geode.DataSerializer;
 import org.apache.geode.SystemFailure;
 import org.apache.geode.annotations.internal.MutableForTesting;
 import org.apache.geode.distributed.internal.DistributionConfig;
-import org.apache.geode.distributed.internal.DistributionConfigImpl;
 import org.apache.geode.internal.serialization.UnsupportedSerializationVersionException;
 import org.apache.geode.internal.serialization.Version;
 import org.apache.geode.internal.serialization.VersionedDataInputStream;
@@ -137,8 +135,8 @@ public class TcpServer {
     return map;
   }
 
-  public TcpServer(int port, InetAddress bind_address, Properties sslConfig,
-      DistributionConfigImpl cfg, TcpHandler handler,
+  public TcpServer(int port, InetAddress bind_address,
+      TcpHandler handler,
       String threadName, ProtocolChecker protocolChecker,
       final LongSupplier nanoTimeSupplier,
       final Supplier<ExecutorService> executorServiceSupplier,
@@ -152,13 +150,6 @@ public class TcpServer {
     this.threadName = threadName;
     this.nanoTimeSupplier = nanoTimeSupplier;
     this.socketCreator = socketCreator;
-
-    if (cfg == null) {
-      if (sslConfig == null) {
-        sslConfig = new Properties();
-      }
-      cfg = new DistributionConfigImpl(sslConfig);
-    }
   }
 
   public void restarting() throws IOException {
