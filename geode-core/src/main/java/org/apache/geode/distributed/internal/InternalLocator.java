@@ -20,6 +20,7 @@ import static org.apache.geode.distributed.ConfigurationProperties.CACHE_XML_FIL
 import static org.apache.geode.distributed.ConfigurationProperties.LOCATORS;
 import static org.apache.geode.distributed.internal.DistributionConfig.GEMFIRE_PREFIX;
 import static org.apache.geode.internal.admin.remote.DistributionLocatorId.asDistributionLocatorIds;
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
 
 import java.io.File;
 import java.io.IOException;
@@ -81,6 +82,7 @@ import org.apache.geode.internal.logging.InternalLogWriter;
 import org.apache.geode.internal.logging.LogWriterFactory;
 import org.apache.geode.internal.net.SocketCreator;
 import org.apache.geode.internal.net.SocketCreatorFactory;
+import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.internal.statistics.StatisticsConfig;
 import org.apache.geode.logging.internal.LoggingSession;
 import org.apache.geode.logging.internal.NullLoggingSession;
@@ -914,7 +916,11 @@ public class InternalLocator extends Locator implements ConnectListener, LogConf
     if (server.isAlive()) {
       logger.info("Stopping {}", this);
       try {
-        new TcpClient().stop(bindAddress, getPort());
+        new TcpClient(
+            asMembershipSocketCreator(
+                SocketCreatorFactory
+                    .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)))
+                        .stop(bindAddress, getPort());
       } catch (ConnectException ignore) {
         // must not be running
       }

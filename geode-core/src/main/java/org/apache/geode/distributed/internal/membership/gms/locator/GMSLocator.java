@@ -14,6 +14,8 @@
  */
 package org.apache.geode.distributed.internal.membership.gms.locator;
 
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -48,6 +50,8 @@ import org.apache.geode.distributed.internal.membership.gms.interfaces.Locator;
 import org.apache.geode.distributed.internal.membership.gms.membership.HostAddress;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.InternalDataSerializer;
+import org.apache.geode.internal.net.SocketCreatorFactory;
+import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.internal.serialization.Version;
 import org.apache.geode.internal.serialization.VersionedDataInputStream;
 import org.apache.geode.logging.internal.log4j.api.LogService;
@@ -394,7 +398,10 @@ public class GMSLocator implements Locator {
   private boolean recover(InetSocketAddress other) {
     try {
       logger.info("Peer locator attempting to recover from {}", other);
-      TcpClient client = new TcpClient();
+      TcpClient client = new TcpClient(
+          asMembershipSocketCreator(
+              SocketCreatorFactory
+                  .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
       Object response = client.requestToServer(other.getAddress(), other.getPort(),
           new GetViewRequest(), 20000, true);
       if (response instanceof GetViewResponse) {

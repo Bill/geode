@@ -14,6 +14,7 @@
  */
 package org.apache.geode.distributed.internal.tcpserver;
 
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
 import static org.apache.geode.security.SecurableCommunicationChannels.LOCATOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -94,7 +95,10 @@ public class TCPClientSSLIntegrationTest {
 
     startTcpServer(serverProperties);
 
-    client = new TcpClient(clientProperties);
+    client = new TcpClient(
+        asMembershipSocketCreator(
+            new SocketCreator(SSLConfigurationFactory.getSSLConfigForComponent(clientProperties,
+                SecurableCommunicationChannel.LOCATOR))));
   }
 
   @After
@@ -196,29 +200,30 @@ public class TCPClientSSLIntegrationTest {
   }
 
   private static class FakeTcpServer extends TcpServer {
-    private DistributionConfig distributionConfig;
 
-    public FakeTcpServer(int port, InetAddress bind_address, Properties sslConfig,
-        DistributionConfigImpl cfg, RestartableTcpHandler handler, PoolStatHelper poolHelper,
+    FakeTcpServer(int port, InetAddress bind_address, Properties sslConfig,
+        DistributionConfigImpl distributionConfig, RestartableTcpHandler handler,
+        PoolStatHelper poolHelper,
         String threadName) {
-      super(port, bind_address, sslConfig, cfg, handler, threadName,
+      super(port, bind_address, sslConfig, distributionConfig, handler, threadName,
           (socket, input, firstByte) -> false, DistributionStats::getStatTime,
-          TcpServerFactory.createExecutorServiceSupplier(poolHelper));
-      if (cfg == null) {
-        cfg = new DistributionConfigImpl(sslConfig);
-      }
-      this.distributionConfig = cfg;
+          TcpServerFactory.createExecutorServiceSupplier(poolHelper),
+          getSocketCreator(getDistributionConfig(sslConfig, distributionConfig)));
     }
 
-    @Override
-    protected SocketCreator getSocketCreator() {
-      if (this.socketCreator == null) {
-        SSLConfigurationFactory.setDistributionConfig(distributionConfig);
-        SSLConfig sslConfig =
-            SSLConfigurationFactory.getSSLConfigForComponent(SecurableCommunicationChannel.LOCATOR);
-        this.socketCreator = new SocketCreator(sslConfig);
-      }
-      return socketCreator;
+    private static DistributionConfigImpl getDistributionConfig(
+        final Properties sslConfig,
+        final DistributionConfigImpl distributionConfig) {
+      return distributionConfig == null ? new DistributionConfigImpl(sslConfig)
+          : distributionConfig;
+    }
+
+    private static MembershipSocketCreator getSocketCreator(
+        final DistributionConfig distributionConfig) {
+      SSLConfigurationFactory.setDistributionConfig(distributionConfig);
+      final SSLConfig sslConfig =
+          SSLConfigurationFactory.getSSLConfigForComponent(SecurableCommunicationChannel.LOCATOR);
+      return asMembershipSocketCreator(new SocketCreator(sslConfig));
     }
   }
 }

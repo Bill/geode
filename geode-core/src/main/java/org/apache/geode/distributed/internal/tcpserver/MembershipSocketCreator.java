@@ -12,25 +12,24 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.geode.internal;
 
+package org.apache.geode.distributed.internal.tcpserver;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 
-/**
- * ConnectionWatcher is used to observe tcp/ip connection formation in SockCreator implementations.
- *
- *
- */
-public interface ConnectionWatcher {
-  /**
-   * this is invoked with the connecting socket just prior to issuing a connect() call. It can be
-   * used to start another thread or task to monitor the connection attempt.
-   */
-  void beforeConnect(Socket socket);
+public interface MembershipSocketCreator {
+  boolean useSSL();
 
-  /**
-   * this is invoked after the connection attempt has finished. It can be used to cancel the task
-   * started by beforeConnect
-   */
-  void afterConnect(Socket socket);
+  ServerSocket createServerSocket(int nport, int backlog) throws IOException;
+
+  ServerSocket createServerSocket(int nport, int backlog, InetAddress bindAddr)
+      throws IOException;
+
+  Socket connect(InetAddress inetadd, int port, int timeout,
+      ConnectionWatcher optionalWatcher, boolean clientSide) throws IOException;
+
+  void handshakeIfSocketIsSSL(Socket socket, int timeout) throws IOException;
 }

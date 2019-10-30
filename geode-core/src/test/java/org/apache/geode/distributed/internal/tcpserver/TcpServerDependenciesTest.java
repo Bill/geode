@@ -31,10 +31,6 @@ import org.apache.geode.DataSerializer;
 import org.apache.geode.SystemFailure;
 import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.DistributionConfigImpl;
-import org.apache.geode.internal.net.SSLConfigurationFactory;
-import org.apache.geode.internal.net.SocketCreator;
-import org.apache.geode.internal.net.SocketCreatorFactory;
-import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.logging.internal.executors.LoggingExecutors;
 import org.apache.geode.logging.internal.executors.LoggingThread;
 import org.apache.geode.logging.internal.log4j.api.LogService;
@@ -64,13 +60,6 @@ public class TcpServerDependenciesTest {
               // TODO - serialization related classes
               .or(type(DataSerializer.class))
               .or(type(DataSerializable.class))
-
-              // TODO - TCP socket related classes
-              .or(type(SocketCreator.class))
-              .or(type(SSLConfigurationFactory.class))
-              .or(type(SecurableCommunicationChannel.class))
-              .or(type(SocketCreatorFactory.class))
-              .or(type(SSLConfigurationFactory.class))
 
               // TODO - cancel excpetion
               .or(type(CancelException.class))

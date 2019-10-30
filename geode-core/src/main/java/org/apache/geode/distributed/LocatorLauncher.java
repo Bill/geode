@@ -22,6 +22,7 @@ import static org.apache.geode.distributed.ConfigurationProperties.LOG_FILE;
 import static org.apache.geode.distributed.ConfigurationProperties.NAME;
 import static org.apache.geode.internal.lang.StringUtils.wrap;
 import static org.apache.geode.internal.lang.SystemUtils.CURRENT_DIRECTORY;
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
 import static org.apache.geode.internal.util.IOUtils.tryGetCanonicalPathElseGetAbsolutePath;
 
 import java.io.File;
@@ -67,6 +68,7 @@ import org.apache.geode.internal.DistributionLocator;
 import org.apache.geode.internal.GemFireVersion;
 import org.apache.geode.internal.lang.ObjectUtils;
 import org.apache.geode.internal.net.SocketCreator;
+import org.apache.geode.internal.net.SocketCreatorFactory;
 import org.apache.geode.internal.process.ConnectionFailedException;
 import org.apache.geode.internal.process.ControlNotificationHandler;
 import org.apache.geode.internal.process.ControllableProcess;
@@ -81,6 +83,7 @@ import org.apache.geode.internal.process.ProcessLauncherContext;
 import org.apache.geode.internal.process.ProcessType;
 import org.apache.geode.internal.process.ProcessUtils;
 import org.apache.geode.internal.process.UnableToControlProcessException;
+import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.lang.AttachAPINotFoundException;
 import org.apache.geode.logging.internal.log4j.api.LogService;
 import org.apache.geode.management.internal.cli.util.HostUtils;
@@ -290,7 +293,12 @@ public class LocatorLauncher extends AbstractLauncher<String> {
     final int timeout = Integer.MAX_VALUE; // 2 minutes
 
     try {
-      TcpClient client = new TcpClient(new DistributionConfigImpl(new Properties()));
+      final DistributionConfigImpl distributionConfig =
+          new DistributionConfigImpl(new Properties());
+      TcpClient client = new TcpClient(
+          asMembershipSocketCreator(SocketCreatorFactory
+              .setDistributionConfig(distributionConfig)
+              .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
       return (LocatorStatusResponse) client.requestToServer(bindAddress, port,
           new LocatorStatusRequest(), timeout, true);
     } catch (ClassNotFoundException e) {

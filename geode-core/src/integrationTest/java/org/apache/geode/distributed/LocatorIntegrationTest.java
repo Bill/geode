@@ -24,6 +24,7 @@ import static org.apache.geode.distributed.ConfigurationProperties.MCAST_PORT;
 import static org.apache.geode.distributed.internal.DistributionConfig.GEMFIRE_PREFIX;
 import static org.apache.geode.internal.AvailablePort.SOCKET;
 import static org.apache.geode.internal.AvailablePort.getRandomAvailablePort;
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -57,6 +58,8 @@ import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.internal.OSProcess;
 import org.apache.geode.internal.cache.GemFireCacheImpl;
+import org.apache.geode.internal.net.SocketCreatorFactory;
+import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.management.internal.JmxManagerAdvisor.JmxManagerProfile;
 import org.apache.geode.management.internal.configuration.messages.SharedConfigurationStatusRequest;
 import org.apache.geode.test.junit.categories.MembershipTest;
@@ -170,7 +173,10 @@ public class LocatorIntegrationTest {
   public void testBasicInfo() throws Exception {
     locator = Locator.startLocator(port, tmpFile);
     int boundPort = port == 0 ? locator.getPort() : port;
-    TcpClient client = new TcpClient();
+    TcpClient client = new TcpClient(
+        asMembershipSocketCreator(
+            SocketCreatorFactory
+                .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
     String[] info = client.getInfo(InetAddress.getLocalHost(), boundPort);
 
     assertThat(info).isNotNull();

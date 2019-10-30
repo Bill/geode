@@ -17,6 +17,7 @@ package org.apache.geode.distributed.internal.membership.gms.membership;
 import static org.apache.geode.distributed.ConfigurationProperties.LOCATORS;
 import static org.apache.geode.distributed.ConfigurationProperties.START_LOCATOR;
 import static org.apache.geode.distributed.internal.membership.gms.api.MembershipConfig.MEMBER_REQUEST_COLLECTION_INTERVAL;
+import static org.apache.geode.internal.net.SocketCreatorFactory.asMembershipSocketCreator;
 import static org.apache.geode.internal.serialization.DataSerializableFixedID.JOIN_REQUEST;
 import static org.apache.geode.internal.serialization.DataSerializableFixedID.LEAVE_REQUEST_MESSAGE;
 import static org.apache.geode.internal.serialization.DataSerializableFixedID.REMOVE_MEMBER_REQUEST;
@@ -68,6 +69,8 @@ import org.apache.geode.distributed.internal.membership.gms.messages.NetworkPart
 import org.apache.geode.distributed.internal.membership.gms.messages.RemoveMemberMessage;
 import org.apache.geode.distributed.internal.membership.gms.messages.ViewAckMessage;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
+import org.apache.geode.internal.net.SocketCreatorFactory;
+import org.apache.geode.internal.security.SecurableCommunicationChannel;
 import org.apache.geode.internal.serialization.Version;
 import org.apache.geode.logging.internal.executors.LoggingExecutors;
 import org.apache.geode.logging.internal.executors.LoggingThread;
@@ -1249,7 +1252,10 @@ public class GMSJoinLeave implements JoinLeave {
     protected Object sendCoordinatorFindRequest(InetSocketAddress addr,
         FindCoordinatorRequest request, int connectTimeout)
         throws ClassNotFoundException, IOException {
-      TcpClient client = new TcpClient();
+      TcpClient client = new TcpClient(
+          asMembershipSocketCreator(
+              SocketCreatorFactory
+                  .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
       return client.requestToServer(addr, request, connectTimeout, true);
     }
   }

@@ -14,6 +14,10 @@
  */
 package org.apache.geode.internal.net;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -23,6 +27,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.geode.GemFireConfigException;
 import org.apache.geode.annotations.internal.MakeNotStatic;
 import org.apache.geode.distributed.internal.DistributionConfig;
+import org.apache.geode.distributed.internal.tcpserver.ConnectionWatcher;
+import org.apache.geode.distributed.internal.tcpserver.MembershipSocketCreator;
 import org.apache.geode.internal.admin.SSLConfig;
 import org.apache.geode.internal.security.SecurableCommunicationChannel;
 
@@ -72,6 +78,48 @@ public class SocketCreatorFactory {
         SSLConfigurationFactory.getSSLConfigForComponent(sslEnabledComponent);
     return getInstance().getOrCreateSocketCreatorForSSLEnabledComponent(sslEnabledComponent,
         sslConfigForComponent);
+  }
+
+  public static class MembershipSocketCreatorAdapter implements MembershipSocketCreator {
+    final SocketCreator socketCreator;
+
+    public MembershipSocketCreatorAdapter(final SocketCreator socketCreator) {
+      this.socketCreator = socketCreator;
+    }
+
+    @Override
+    public boolean useSSL() {
+      return socketCreator.useSSL();
+    }
+
+    @Override
+    public ServerSocket createServerSocket(final int nport, final int backlog) throws IOException {
+      return socketCreator.createServerSocket(nport, backlog);
+    }
+
+    @Override
+    public ServerSocket createServerSocket(final int nport, final int backlog,
+        final InetAddress bindAddr)
+        throws IOException {
+      return socketCreator.createServerSocket(nport, backlog, bindAddr);
+    }
+
+    @Override
+    public Socket connect(final InetAddress inetadd, final int port, final int timeout,
+        final ConnectionWatcher optionalWatcher, final boolean clientSide)
+        throws IOException {
+      return socketCreator.connect(inetadd, port, timeout, optionalWatcher, clientSide);
+    }
+
+    @Override
+    public void handshakeIfSocketIsSSL(final Socket socket, final int timeout) throws IOException {
+      socketCreator.handshakeIfSocketIsSSL(socket, timeout);
+    }
+  }
+
+  public static MembershipSocketCreator asMembershipSocketCreator(
+      final SocketCreator socketCreator) {
+    return new MembershipSocketCreatorAdapter(socketCreator);
   }
 
   private SocketCreator getSSLSocketCreator(final SecurableCommunicationChannel sslComponent,
