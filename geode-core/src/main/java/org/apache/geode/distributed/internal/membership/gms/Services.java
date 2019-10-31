@@ -66,6 +66,7 @@ import org.apache.geode.distributed.internal.membership.gms.messages.RemoveMembe
 import org.apache.geode.distributed.internal.membership.gms.messages.SuspectMembersMessage;
 import org.apache.geode.distributed.internal.membership.gms.messages.ViewAckMessage;
 import org.apache.geode.distributed.internal.membership.gms.messenger.JGroupsMessenger;
+import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.serialization.DSFIDSerializer;
 import org.apache.geode.logging.internal.log4j.api.LogService;
 
@@ -127,12 +128,12 @@ public class Services {
 
   public Services(Manager membershipManager, MembershipStatistics stats,
       final Authenticator authenticator, MembershipConfig membershipConfig,
-      DSFIDSerializer serializer) {
+      DSFIDSerializer serializer, final TcpClient locatorClient) {
     this.cancelCriterion = new Stopper();
     this.stats = stats;
     this.config = membershipConfig;
     this.manager = membershipManager;
-    this.joinLeave = new GMSJoinLeave();
+    this.joinLeave = new GMSJoinLeave(locatorClient);
     this.healthMon = new GMSHealthMonitor();
     this.messenger = new JGroupsMessenger();
     this.auth = authenticator;

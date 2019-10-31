@@ -82,6 +82,7 @@ public class GMSLocator implements Locator {
   private GMSMembershipView recoveredView;
 
   private File viewFile;
+  private final TcpClient locatorClient;
 
   /**
    * @param bindAddress network address that TcpServer will bind to
@@ -94,7 +95,7 @@ public class GMSLocator implements Locator {
    */
   public GMSLocator(InetAddress bindAddress, String locatorString, boolean usePreferredCoordinators,
       boolean networkPartitionDetectionEnabled, LocatorStats locatorStats,
-      String securityUDPDHAlgo, Path workingDirectory) {
+      String securityUDPDHAlgo, Path workingDirectory, final TcpClient locatorClient) {
     this.usePreferredCoordinators = usePreferredCoordinators;
     this.networkPartitionDetectionEnabled = networkPartitionDetectionEnabled;
     this.securityUDPDHAlgo = securityUDPDHAlgo;
@@ -106,6 +107,7 @@ public class GMSLocator implements Locator {
     }
     this.locatorStats = locatorStats;
     this.workingDirectory = workingDirectory;
+    this.locatorClient = locatorClient;
   }
 
   public synchronized boolean setServices(Services pservices) {
@@ -394,8 +396,7 @@ public class GMSLocator implements Locator {
   private boolean recover(InetSocketAddress other) {
     try {
       logger.info("Peer locator attempting to recover from {}", other);
-      TcpClient client = new TcpClient();
-      Object response = client.requestToServer(other.getAddress(), other.getPort(),
+      Object response = locatorClient.requestToServer(other.getAddress(), other.getPort(),
           new GetViewRequest(), 20000, true);
       if (response instanceof GetViewResponse) {
         view = ((GetViewResponse) response).getView();
