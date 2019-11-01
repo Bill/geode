@@ -66,6 +66,7 @@ import org.apache.geode.distributed.internal.InternalLocator;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
 import org.apache.geode.internal.DistributionLocator;
 import org.apache.geode.internal.GemFireVersion;
+import org.apache.geode.internal.InternalDataSerializer;
 import org.apache.geode.internal.lang.ObjectUtils;
 import org.apache.geode.internal.net.SocketCreator;
 import org.apache.geode.internal.net.SocketCreatorFactory;
@@ -298,7 +299,9 @@ public class LocatorLauncher extends AbstractLauncher<String> {
       TcpClient client = new TcpClient(
           asTcpSocketCreator(SocketCreatorFactory
               .setDistributionConfig(distributionConfig)
-              .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
+              .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)),
+          InternalDataSerializer.getDSFIDSerializer().getObjectSerializer(),
+          InternalDataSerializer.getDSFIDSerializer().getObjectDeserializer());
       return (LocatorStatusResponse) client.requestToServer(bindAddress, port,
           new LocatorStatusRequest(), timeout, true);
     } catch (ClassNotFoundException e) {

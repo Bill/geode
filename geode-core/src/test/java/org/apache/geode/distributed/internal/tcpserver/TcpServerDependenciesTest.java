@@ -56,7 +56,6 @@ public class TcpServerDependenciesTest {
 
 
               // TODO - serialization related classes
-              .or(type(DataSerializer.class))
               .or(type(DataSerializable.class))
 
               // TODO - config

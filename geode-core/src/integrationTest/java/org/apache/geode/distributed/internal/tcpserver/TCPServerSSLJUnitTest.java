@@ -46,6 +46,7 @@ import org.apache.geode.distributed.internal.DistributionStats;
 import org.apache.geode.distributed.internal.PoolStatHelper;
 import org.apache.geode.distributed.internal.RestartableTcpHandler;
 import org.apache.geode.internal.AvailablePort;
+import org.apache.geode.internal.InternalDataSerializer;
 import org.apache.geode.internal.admin.SSLConfig;
 import org.apache.geode.internal.cache.tier.sockets.TcpServerFactory;
 import org.apache.geode.internal.net.DummySocketCreator;
@@ -130,7 +131,9 @@ public class TCPServerSSLJUnitTest {
       new TcpClient(
           asTcpSocketCreator(
               SocketCreatorFactory
-                  .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)))
+                  .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)),
+          InternalDataSerializer.getDSFIDSerializer().getObjectSerializer(),
+          InternalDataSerializer.getDSFIDSerializer().getObjectDeserializer())
                       .requestToServer(localhost, port, Boolean.valueOf(false), 5 * 1000);
     } catch (IOException e) {
       e.printStackTrace();
@@ -146,7 +149,9 @@ public class TCPServerSSLJUnitTest {
       super(port, bind_address, sslConfig, cfg, handler, threadName,
           (socket, input, firstByte) -> false, DistributionStats::getStatTime,
           TcpServerFactory.createExecutorServiceSupplier(poolHelper),
-          getSocketCreator(getDistributionConfig(sslConfig, cfg), recordedSocketTimeouts));
+          getSocketCreator(getDistributionConfig(sslConfig, cfg), recordedSocketTimeouts),
+          InternalDataSerializer.getDSFIDSerializer().getObjectSerializer(),
+          InternalDataSerializer.getDSFIDSerializer().getObjectDeserializer());
     }
 
     private static DistributionConfigImpl getDistributionConfig(

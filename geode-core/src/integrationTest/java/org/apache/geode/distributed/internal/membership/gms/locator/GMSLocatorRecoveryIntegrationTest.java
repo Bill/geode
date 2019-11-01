@@ -100,7 +100,9 @@ public class GMSLocatorRecoveryIntegrationTest {
         temporaryFolder.getRoot().toPath(), new TcpClient(
             asTcpSocketCreator(
                 SocketCreatorFactory
-                    .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR))));
+                    .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)),
+        InternalDataSerializer.getDSFIDSerializer().getObjectSerializer(),
+        InternalDataSerializer.getDSFIDSerializer().getObjectDeserializer()));
     gmsLocator.setViewFile(stateFile);
   }
 
@@ -185,7 +187,9 @@ public class GMSLocatorRecoveryIntegrationTest {
     final TcpClient locatorClient = new TcpClient(
         asTcpSocketCreator(
             SocketCreatorFactory
-                .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)));
+                .getSocketCreatorForComponent(SecurableCommunicationChannel.LOCATOR)),
+        InternalDataSerializer.getDSFIDSerializer().getObjectSerializer(),
+        InternalDataSerializer.getDSFIDSerializer().getObjectDeserializer());
 
     // start the membership manager
     membershipManager =
