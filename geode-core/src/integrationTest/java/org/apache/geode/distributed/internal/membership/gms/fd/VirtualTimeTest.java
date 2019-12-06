@@ -133,5 +133,4 @@ public class VirtualTimeTest {
         .describedAs("tasks with same start time didn't run in scheduling order");
   }
 
-
 }
