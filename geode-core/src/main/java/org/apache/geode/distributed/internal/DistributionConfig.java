@@ -201,6 +201,7 @@ import org.apache.geode.annotations.Immutable;
 import org.apache.geode.annotations.internal.MakeImmutable;
 import org.apache.geode.distributed.ConfigurationProperties;
 import org.apache.geode.distributed.DistributedSystem;
+import org.apache.geode.distributed.internal.membership.gms.api.MembershipConfig;
 import org.apache.geode.internal.Config;
 import org.apache.geode.internal.ConfigSource;
 import org.apache.geode.internal.logging.LogWriterImpl;
@@ -269,7 +270,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this constant is <code>""</code>.
    */
-  String DEFAULT_NAME = "";
+  String DEFAULT_NAME = MembershipConfig.DEFAULT_NAME;
 
   /**
    * Returns the value of the {@link ConfigurationProperties#MCAST_PORT}</a> property
@@ -286,7 +287,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#MCAST_PORT} property
    */
-  int DEFAULT_MCAST_PORT = 0;
+  int DEFAULT_MCAST_PORT = MembershipConfig.DEFAULT_MCAST_PORT;
 
   /**
    * The minimum {@link ConfigurationProperties#MCAST_PORT}.
@@ -428,7 +429,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * The default value of the {@link ConfigurationProperties#BIND_ADDRESS} property. Current value
    * is an empty string <code>""</code>
    */
-  String DEFAULT_BIND_ADDRESS = "";
+  String DEFAULT_BIND_ADDRESS = MembershipConfig.DEFAULT_BIND_ADDRESS;
 
   /**
    * Returns the value of the {@link ConfigurationProperties#SERVER_BIND_ADDRESS} property
@@ -484,7 +485,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#LOCATORS} property
    */
-  String DEFAULT_LOCATORS = "";
+  String DEFAULT_LOCATORS = MembershipConfig.DEFAULT_LOCATORS;
 
   /**
    * Locator wait time - how long to wait for a locator to start before giving up & throwing a
@@ -493,7 +494,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   @ConfigAttribute(type = Integer.class)
   String LOCATOR_WAIT_TIME_NAME = LOCATOR_WAIT_TIME;
 
-  int DEFAULT_LOCATOR_WAIT_TIME = 0;
+  int DEFAULT_LOCATOR_WAIT_TIME = MembershipConfig.DEFAULT_LOCATOR_WAIT_TIME;
 
   @ConfigAttributeGetter(name = LOCATOR_WAIT_TIME)
   int getLocatorWaitTime();
@@ -525,7 +526,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#START_LOCATOR} property
    */
-  String DEFAULT_START_LOCATOR = "";
+  String DEFAULT_START_LOCATOR = MembershipConfig.DEFAULT_START_LOCATOR;
 
   /**
    * Returns the value of the {@link ConfigurationProperties#DEPLOY_WORKING_DIR} property
@@ -1526,7 +1527,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#UDP_FRAGMENT_SIZE} property
    */
-  int DEFAULT_UDP_FRAGMENT_SIZE = 60000;
+  int DEFAULT_UDP_FRAGMENT_SIZE = MembershipConfig.DEFAULT_UDP_FRAGMENT_SIZE;
 
   /**
    * The minimum allowed {@link ConfigurationProperties#UDP_FRAGMENT_SIZE} setting of 1000
@@ -1631,7 +1632,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#DISABLE_TCP} property
    */
-  boolean DEFAULT_DISABLE_TCP = false;
+  boolean DEFAULT_DISABLE_TCP = MembershipConfig.DEFAULT_DISABLE_TCP;
 
   /**
    * Returns the value of the {@link ConfigurationProperties#DISABLE_JMX} property
@@ -1817,7 +1818,8 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    */
   @ConfigAttribute(type = Boolean.class)
   String ENABLE_NETWORK_PARTITION_DETECTION_NAME = ENABLE_NETWORK_PARTITION_DETECTION;
-  boolean DEFAULT_ENABLE_NETWORK_PARTITION_DETECTION = true;
+  boolean DEFAULT_ENABLE_NETWORK_PARTITION_DETECTION =
+      MembershipConfig.DEFAULT_ENABLE_NETWORK_PARTITION_DETECTION;
 
   /**
    * Get the value of the {@link ConfigurationProperties#MEMBER_TIMEOUT} property
@@ -1834,7 +1836,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#MEMBER_TIMEOUT} property
    */
-  int DEFAULT_MEMBER_TIMEOUT = 5000;
+  int DEFAULT_MEMBER_TIMEOUT = MembershipConfig.DEFAULT_MEMBER_TIMEOUT;
 
   /**
    * The minimum {@link ConfigurationProperties#MEMBER_TIMEOUT} setting of 1000 milliseconds
@@ -1860,7 +1862,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   String RESTRICT_MEMBERSHIP_PORT_RANGE = GEMFIRE_PREFIX + "use-ephemeral-ports";
 
   @MakeImmutable
-  int[] DEFAULT_MEMBERSHIP_PORT_RANGE = new int[] {41000, 61000};
+  int[] DEFAULT_MEMBERSHIP_PORT_RANGE = MembershipConfig.DEFAULT_MEMBERSHIP_PORT_RANGE;
 
   @ConfigAttributeGetter(name = MEMBERSHIP_PORT_RANGE)
   int[] getMembershipPortRange();
@@ -1912,7 +1914,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#ROLES} property
    */
-  String DEFAULT_ROLES = "";
+  String DEFAULT_ROLES = MembershipConfig.DEFAULT_ROLES;
 
   /**
    * The name of the {@link ConfigurationProperties#MAX_WAIT_TIME_RECONNECT} property
@@ -2200,7 +2202,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this constant is <code>""</code>.
    */
-  String DEFAULT_DURABLE_CLIENT_ID = "";
+  String DEFAULT_DURABLE_CLIENT_ID = MembershipConfig.DEFAULT_DURABLE_CLIENT_ID;
 
   /**
    * Returns the value of the {@link ConfigurationProperties#DURABLE_CLIENT_TIMEOUT} property.
@@ -2392,7 +2394,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * Actual value of this is one of the available symmetric algorithm names in JDK like "AES:128" or
    * "Blowfish".
    */
-  String DEFAULT_SECURITY_UDP_DHALGO = "";
+  String DEFAULT_SECURITY_UDP_DHALGO = MembershipConfig.DEFAULT_SECURITY_UDP_DHALGO;
 
   /**
    * Returns user defined method name for peer authentication initializer in
@@ -2418,7 +2420,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this is fully qualified <code>"method name"</code>.
    */
-  String DEFAULT_SECURITY_PEER_AUTH_INIT = "";
+  String DEFAULT_SECURITY_PEER_AUTH_INIT = MembershipConfig.DEFAULT_SECURITY_PEER_AUTH_INIT;
 
   /**
    * Returns user defined method name authenticating peer's credentials in
@@ -2849,7 +2851,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    *
    * @since GemFire 7.0
    */
-  String DEFAULT_GROUPS = "";
+  String DEFAULT_GROUPS = MembershipConfig.DEFAULT_GROUPS;
 
   /**
    * Any cleanup required before closing the distributed system

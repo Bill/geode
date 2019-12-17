@@ -198,8 +198,7 @@ public class JGroupsMessenger<ID extends MemberIdentifier> implements Messenger<
 
     MembershipConfig config = services.getConfig();
 
-
-    boolean enableNetworkPartitionDetection = config.getEnableNetworkPartitionDetection();
+    boolean enableNetworkPartitionDetection = config.isNetworkPartitionDetectionEnabled();
     System.setProperty("jgroups.resolve_dns", String.valueOf(!enableNetworkPartitionDetection));
 
     InputStream is;
@@ -546,7 +545,7 @@ public class JGroupsMessenger<ID extends MemberIdentifier> implements Messenger<
         -1 /* directport */, -1 /* viewID */, config.getName(),
         GMSUtil.parseGroups(config.getRoles(), config.getGroups()), config.getDurableClientId(),
         config.getDurableClientTimeout(),
-        config.getEnableNetworkPartitionDetection(), isLocator,
+        config.isNetworkPartitionDetectionEnabled(), isLocator,
         Version.getCurrentVersion().ordinal(),
         jgAddress.getUUIDMsbs(), jgAddress.getUUIDLsbs(),
         (byte) (services.getConfig().getMemberWeight() & 0xff));
