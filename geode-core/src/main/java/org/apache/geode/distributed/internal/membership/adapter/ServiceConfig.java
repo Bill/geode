@@ -15,8 +15,6 @@
 package org.apache.geode.distributed.internal.membership.adapter;
 
 
-import java.net.InetAddress;
-
 import org.apache.geode.distributed.Locator;
 import org.apache.geode.distributed.internal.DistributionConfig;
 import org.apache.geode.distributed.internal.InternalLocator;
@@ -244,8 +242,8 @@ public class ServiceConfig implements MembershipConfig {
   }
 
   @Override
-  public InetAddress getMcastAddress() {
-    return dconfig.getMcastAddress();
+  public String getMcastAddress() {
+    return dconfig.getMcastAddress().getHostAddress();
   }
 
   @Override
@@ -316,16 +314,6 @@ public class ServiceConfig implements MembershipConfig {
   @Override
   public int getVmKind() {
     return transport.getVmKind();
-  }
-
-  @Override
-  public boolean isMcastEnabled() {
-    return transport.isMcastEnabled();
-  }
-
-  @Override
-  public boolean isTcpDisabled() {
-    return transport.isTcpDisabled();
   }
 
   @Override

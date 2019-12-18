@@ -47,6 +47,22 @@ public interface MembershipConfig {
   String DEFAULT_ROLES = "";
   String DEFAULT_GROUPS = "";
   String DEFAULT_DURABLE_CLIENT_ID = "";
+  int DEFAULT_DURABLE_CLIENT_TIMEOUT = 300;
+  String DEFAULT_MCAST_ADDRESS = "239.192.81.1";
+  int DEFAULT_MCAST_TTL = 32;
+  int DEFAULT_MCAST_SEND_BUFFER_SIZE = 65535;
+  int DEFAULT_MCAST_RECV_BUFFER_SIZE = 1048576;
+  int DEFAULT_UDP_RECV_BUFFER_SIZE = 1048576;
+  int DEFAULT_UDP_SEND_BUFFER_SIZE = 65535;
+  int DEFAULT_MCAST_BYTE_ALLOWANCE = 1048576;
+  float DEFAULT_MCAST_RECHARGE_THRESHOLD = (float) 0.25;
+  int DEFAULT_MCAST_RECHARGE_BLOCKING_MS = 5000;
+  int DEFAULT_ACK_WAIT_THRESHOLD = 51;
+  boolean DEFAULT_DISABLE_AUTO_RECONNECT = false;
+  int DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT = 1000;
+  int DEFAULT_ACK_SEVERE_ALERT_THRESHOLD = 0;
+  Object DEFAULT_OLD_MEMBERSHIP_INFO = null;
+  boolean DEFAULT_IS_RECONNECTING_DS = false;
 
   default boolean isReconnecting() { return false; }
 
@@ -92,43 +108,39 @@ public interface MembershipConfig {
 
   default String getDurableClientId() { return DEFAULT_DURABLE_CLIENT_ID; }
 
-  default int getDurableClientTimeout();
+  default int getDurableClientTimeout() { return DEFAULT_DURABLE_CLIENT_TIMEOUT; }
 
-  default InetAddress getMcastAddress();
+  default String getMcastAddress() { return DEFAULT_MCAST_ADDRESS; }
 
-  default int getMcastTtl();
+  default int getMcastTtl() { return DEFAULT_MCAST_TTL; }
 
-  default int getMcastSendBufferSize();
+  default int getMcastSendBufferSize() { return DEFAULT_MCAST_SEND_BUFFER_SIZE; }
 
-  default int getMcastRecvBufferSize();
+  default int getMcastRecvBufferSize() { return DEFAULT_MCAST_RECV_BUFFER_SIZE; }
 
   default int getUdpFragmentSize() { return DEFAULT_UDP_FRAGMENT_SIZE; }
 
-  default int getUdpRecvBufferSize();
+  default int getUdpRecvBufferSize() { return DEFAULT_UDP_RECV_BUFFER_SIZE; }
 
-  default int getUdpSendBufferSize();
+  default int getUdpSendBufferSize() { return DEFAULT_UDP_SEND_BUFFER_SIZE; }
 
-  default int getMcastByteAllowance();
+  default int getMcastByteAllowance() { return DEFAULT_MCAST_BYTE_ALLOWANCE; }
 
-  default float getMcastRechargeThreshold();
+  default float getMcastRechargeThreshold() { return DEFAULT_MCAST_RECHARGE_THRESHOLD;}
 
-  default int getMcastRechargeBlockMs();
+  default int getMcastRechargeBlockMs() { return DEFAULT_MCAST_RECHARGE_BLOCKING_MS; }
 
-  default long getAckWaitThreshold();
+  default long getAckWaitThreshold() { return DEFAULT_ACK_WAIT_THRESHOLD; }
 
-  default boolean getDisableAutoReconnect();
+  default boolean getDisableAutoReconnect() { return DEFAULT_DISABLE_AUTO_RECONNECT; }
 
-  default int getSecurityPeerMembershipTimeout();
+  default int getSecurityPeerMembershipTimeout() { return DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT; }
 
-  default long getAckSevereAlertThreshold();
+  default long getAckSevereAlertThreshold() { return DEFAULT_ACK_SEVERE_ALERT_THRESHOLD; }
 
-  default int getVmKind();
+  default int getVmKind() { return MemberIdentifier.NORMAL_DM_TYPE; }
 
-  default boolean isMcastEnabled();
+  default Object getOldDSMembershipInfo() { return DEFAULT_OLD_MEMBERSHIP_INFO; }
 
-  default boolean isTcpDisabled();
-
-  default Object getOldDSMembershipInfo();
-
-  default boolean getIsReconnectingDS();
+  default boolean getIsReconnectingDS() { return DEFAULT_IS_RECONNECTING_DS; }
 }

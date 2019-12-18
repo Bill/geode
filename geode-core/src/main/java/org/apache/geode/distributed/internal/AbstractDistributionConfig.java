@@ -204,6 +204,7 @@ import org.apache.geode.InternalGemFireException;
 import org.apache.geode.InvalidValueException;
 import org.apache.geode.UnmodifiableException;
 import org.apache.geode.annotations.Immutable;
+import org.apache.geode.distributed.internal.membership.gms.api.MembershipConfig;
 import org.apache.geode.internal.AbstractConfig;
 import org.apache.geode.internal.ConfigSource;
 import org.apache.geode.internal.admin.remote.DistributionLocatorId;
@@ -1512,7 +1513,7 @@ public abstract class AbstractDistributionConfig extends AbstractConfig
     // Default MCast address can be just IPv4 address.
     // On IPv6 machines, JGroups converts IPv4 address to equivalent IPv6 address.
     try {
-      String ipLiteral = "239.192.81.1";
+      String ipLiteral = MembershipConfig.DEFAULT_MCAST_ADDRESS;
       return InetAddress.getByName(ipLiteral);
     } catch (UnknownHostException ex) {
       // this should never happen

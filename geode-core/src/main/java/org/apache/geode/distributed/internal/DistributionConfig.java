@@ -385,7 +385,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#MCAST_TTL} property
    */
-  int DEFAULT_MCAST_TTL = 32;
+  int DEFAULT_MCAST_TTL = MembershipConfig.DEFAULT_MCAST_TTL;
 
   /**
    * The minimum {@link ConfigurationProperties#MCAST_TTL}.
@@ -798,7 +798,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this constant is <code>15</code> seconds.
    */
-  int DEFAULT_ACK_WAIT_THRESHOLD = 15;
+  int DEFAULT_ACK_WAIT_THRESHOLD = MembershipConfig.DEFAULT_ACK_WAIT_THRESHOLD;
   /**
    * The minimum {@link ConfigurationProperties#ACK_WAIT_THRESHOLD}.
    * <p>
@@ -835,7 +835,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this constant is <code>0</code> seconds, which turns off shunning.
    */
-  int DEFAULT_ACK_SEVERE_ALERT_THRESHOLD = 0;
+  int DEFAULT_ACK_SEVERE_ALERT_THRESHOLD = MembershipConfig.DEFAULT_ACK_SEVERE_ALERT_THRESHOLD;
   /**
    * The minimum {@link ConfigurationProperties#ACK_SEVERE_ALERT_THRESHOLD}.
    * <p>
@@ -1413,7 +1413,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value for {@link ConfigurationProperties#MCAST_SEND_BUFFER_SIZE} property
    */
-  int DEFAULT_MCAST_SEND_BUFFER_SIZE = 65535;
+  int DEFAULT_MCAST_SEND_BUFFER_SIZE = MembershipConfig.DEFAULT_MCAST_SEND_BUFFER_SIZE;
 
   /**
    * The minimum size of the {@link ConfigurationProperties#MCAST_SEND_BUFFER_SIZE}, in bytes.
@@ -1443,7 +1443,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#MCAST_RECV_BUFFER_SIZE} property
    */
-  int DEFAULT_MCAST_RECV_BUFFER_SIZE = 1048576;
+  int DEFAULT_MCAST_RECV_BUFFER_SIZE = MembershipConfig.DEFAULT_MCAST_RECV_BUFFER_SIZE;
 
   /**
    * The minimum size of the {@link ConfigurationProperties#MCAST_RECV_BUFFER_SIZE}, in bytes.
@@ -1480,7 +1480,9 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * The default value of the {@link ConfigurationProperties#MCAST_FLOW_CONTROL} property
    */
   @Immutable
-  FlowControlParams DEFAULT_MCAST_FLOW_CONTROL = new FlowControlParams(1048576, (float) 0.25, 5000);
+  FlowControlParams DEFAULT_MCAST_FLOW_CONTROL = new FlowControlParams(
+      MembershipConfig.DEFAULT_MCAST_BYTE_ALLOWANCE, MembershipConfig.DEFAULT_MCAST_RECHARGE_THRESHOLD,
+      MembershipConfig.DEFAULT_MCAST_RECHARGE_BLOCKING_MS);
 
   /**
    * The minimum byteAllowance for the{@link ConfigurationProperties#MCAST_FLOW_CONTROL} setting of
@@ -1560,7 +1562,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#UDP_SEND_BUFFER_SIZE} property
    */
-  int DEFAULT_UDP_SEND_BUFFER_SIZE = 65535;
+  int DEFAULT_UDP_SEND_BUFFER_SIZE = MembershipConfig.DEFAULT_UDP_SEND_BUFFER_SIZE;
 
   /**
    * The minimum size of the {@link ConfigurationProperties#UDP_SEND_BUFFER_SIZE}, in bytes.
@@ -1590,7 +1592,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#UDP_RECV_BUFFER_SIZE} property
    */
-  int DEFAULT_UDP_RECV_BUFFER_SIZE = 1048576;
+  int DEFAULT_UDP_RECV_BUFFER_SIZE = MembershipConfig.DEFAULT_UDP_RECV_BUFFER_SIZE;
 
   /**
    * The default size of the {@link ConfigurationProperties#UDP_RECV_BUFFER_SIZE} if tcp/ip sockets
@@ -2227,7 +2229,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    * <p>
    * Actual value of this constant is <code>"300"</code>.
    */
-  int DEFAULT_DURABLE_CLIENT_TIMEOUT = 300;
+  int DEFAULT_DURABLE_CLIENT_TIMEOUT = MembershipConfig.DEFAULT_DURABLE_CLIENT_TIMEOUT;
 
   /**
    * Returns user module name for client authentication initializer in
@@ -2594,7 +2596,8 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default peer membership check timeout is 1 second.
    */
-  int DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT = 1000;
+  int DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT = MembershipConfig.DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT;
+
 
   /**
    * Max membership timeout must be less than max peer handshake timeout. Currently this is set to
@@ -4037,7 +4040,7 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default value of the {@link ConfigurationProperties#DISABLE_AUTO_RECONNECT} property
    */
-  boolean DEFAULT_DISABLE_AUTO_RECONNECT = false;
+  boolean DEFAULT_DISABLE_AUTO_RECONNECT = MembershipConfig.DEFAULT_DISABLE_AUTO_RECONNECT;
 
   /**
    * Gets the value of {@link ConfigurationProperties#DISABLE_AUTO_RECONNECT}
