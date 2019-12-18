@@ -63,12 +63,13 @@ public interface MembershipConfig {
   int DEFAULT_ACK_SEVERE_ALERT_THRESHOLD = 0;
   Object DEFAULT_OLD_MEMBERSHIP_INFO = null;
   boolean DEFAULT_IS_RECONNECTING_DS = false;
+  int DEFAULT_JOIN_TIMEOUT = 24000;
 
   default boolean isReconnecting() { return false; }
 
   default int getLocatorWaitTime() { return DEFAULT_LOCATOR_WAIT_TIME; }
 
-  long getJoinTimeout();
+  default long getJoinTimeout() { return DEFAULT_JOIN_TIMEOUT; }
 
   default int[] getMembershipPortRange() { return DEFAULT_MEMBERSHIP_PORT_RANGE; }
 

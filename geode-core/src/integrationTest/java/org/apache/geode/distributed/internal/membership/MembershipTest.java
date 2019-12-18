@@ -14,6 +14,7 @@
  */
 package org.apache.geode.distributed.internal.membership;
 
+import static org.apache.geode.distributed.internal.membership.adapter.SocketCreatorAdapter.asTcpSocketCreator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -22,6 +23,8 @@ import static org.mockito.Mockito.withSettings;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Properties;
 
 import org.junit.After;
@@ -32,6 +35,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Answers;
 
 import org.apache.geode.distributed.internal.InternalLocator;
+import org.apache.geode.distributed.internal.membership.adapter.SocketCreatorAdapter;
 import org.apache.geode.distributed.internal.membership.gms.MemberIdentifierFactoryImpl;
 import org.apache.geode.distributed.internal.membership.gms.api.Authenticator;
 import org.apache.geode.distributed.internal.membership.gms.api.LifecycleListener;
@@ -42,8 +46,16 @@ import org.apache.geode.distributed.internal.membership.gms.api.MembershipConfig
 import org.apache.geode.distributed.internal.membership.gms.api.MembershipListener;
 import org.apache.geode.distributed.internal.membership.gms.api.MembershipStatistics;
 import org.apache.geode.distributed.internal.membership.gms.api.MessageListener;
+import org.apache.geode.distributed.internal.tcpserver.ConnectionWatcher;
 import org.apache.geode.distributed.internal.tcpserver.TcpClient;
+import org.apache.geode.distributed.internal.tcpserver.TcpSocketCreator;
+import org.apache.geode.internal.admin.SSLConfig;
+import org.apache.geode.internal.net.SocketCreator;
 import org.apache.geode.internal.serialization.DSFIDSerializer;
+import org.apache.geode.internal.serialization.DSFIDSerializerFactory;
+import org.apache.geode.internal.serialization.DSFIDSerializerImpl;
+import org.apache.geode.internal.serialization.ObjectDeserializer;
+import org.apache.geode.internal.serialization.ObjectSerializer;
 
 public class MembershipTest {
 
@@ -73,23 +85,26 @@ public class MembershipTest {
   @Test
   public void memberCanConnectToLocator() {
 
-    final MembershipConfig config =
-        mock(MembershipConfig.class, withSettings().defaultAnswer(Answers.CALLS_REAL_METHODS));
+    final MembershipConfig config = new MembershipConfig() {
+      public String getLocators() {
+        return localHost.getHostName() + '[' + locator.getPort() + ']';
+      }
+    };
 
-    when(config.getLocators()).thenReturn(localHost.getHostName() + '[' + locator.getPort() + ']');
+    DSFIDSerializer dsfidSerializer = new DSFIDSerializerFactory().create();
 
-    final Membership<MemberIdentifier>
+    final TcpSocketCreator socketCreator = asTcpSocketCreator(new SocketCreator(new SSLConfig.Builder().build()));
+
+    TcpClient client = new TcpClient(socketCreator, dsfidSerializer.getObjectSerializer(), dsfidSerializer.getObjectDeserializer());
+
+    @SuppressWarnings("unchecked")
+    final Membership<InternalDistributedMember>
         membership =
-        MembershipBuilder.newMembershipBuilder()
-            .setAuthenticator(mock(Authenticator.class))
-            .setStatistics(mock(MembershipStatistics.class))
-            .setMembershipListener(mock(MembershipListener.class))
-            .setMessageListener(mock(MessageListener.class))
+        MembershipBuilder.<InternalDistributedMember>newMembershipBuilder()
             .setConfig(config)
-            .setSerializer(mock(DSFIDSerializer.class))
+            .setSerializer(dsfidSerializer)
             .setMemberIDFactory(new MemberIdentifierFactoryImpl())
-            .setLifecycleListener(mock(LifecycleListener.class))
-            .setLocatorClient(mock(TcpClient.class))
+            .setLocatorClient(client)
             .create();
 
     membership.start();
