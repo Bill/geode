@@ -36,7 +36,8 @@ import org.apache.geode.security.GemFireSecurityException;
 public class MembershipBuilderImpl<ID extends MemberIdentifier> implements MembershipBuilder<ID> {
   private TcpClient locatorClient;
   private MembershipListener<ID> membershipListener = new MembershipListenerNoOp();
-  private MessageListener<ID> messageListener = message -> {};
+  private MessageListener<ID> messageListener = message -> {
+  };
   private MembershipStatistics statistics = new MembershipStatisticsNoOp();
   private Authenticator<ID> authenticator = new AuthenticatorNoOp();
   private MembershipConfig membershipConfig = new MembershipConfig() {};

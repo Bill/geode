@@ -14,9 +14,7 @@
  */
 package org.apache.geode.distributed.internal.membership.gms.api;
 
-import java.net.InetAddress;
 
-import org.apache.geode.annotations.Immutable;
 import org.apache.geode.annotations.internal.MakeImmutable;
 import org.apache.geode.distributed.internal.DistributionConfig;
 
@@ -65,83 +63,163 @@ public interface MembershipConfig {
   boolean DEFAULT_IS_RECONNECTING_DS = false;
   int DEFAULT_JOIN_TIMEOUT = 24000;
 
-  default boolean isReconnecting() { return false; }
+  default boolean isReconnecting() {
+    return false;
+  }
 
-  default int getLocatorWaitTime() { return DEFAULT_LOCATOR_WAIT_TIME; }
+  default int getLocatorWaitTime() {
+    return DEFAULT_LOCATOR_WAIT_TIME;
+  }
 
-  default long getJoinTimeout() { return DEFAULT_JOIN_TIMEOUT; }
+  default long getJoinTimeout() {
+    return DEFAULT_JOIN_TIMEOUT;
+  }
 
-  default int[] getMembershipPortRange() { return DEFAULT_MEMBERSHIP_PORT_RANGE; }
+  default int[] getMembershipPortRange() {
+    return DEFAULT_MEMBERSHIP_PORT_RANGE;
+  }
 
-  default long getMemberTimeout() {return DEFAULT_MEMBER_TIMEOUT; }
+  default long getMemberTimeout() {
+    return DEFAULT_MEMBER_TIMEOUT;
+  }
 
-  default int getLossThreshold() { return DEFAULT_LOSS_THRESHOLD; }
+  default int getLossThreshold() {
+    return DEFAULT_LOSS_THRESHOLD;
+  }
 
-  default int getMemberWeight() { return DEFAULT_MEMBER_WEIGHT; }
+  default int getMemberWeight() {
+    return DEFAULT_MEMBER_WEIGHT;
+  }
 
-  default boolean isMulticastEnabled() { return getMcastPort() > 0; }
+  default boolean isMulticastEnabled() {
+    return getMcastPort() > 0;
+  }
 
-  default boolean isNetworkPartitionDetectionEnabled() { return DEFAULT_ENABLE_NETWORK_PARTITION_DETECTION; }
+  default boolean isNetworkPartitionDetectionEnabled() {
+    return DEFAULT_ENABLE_NETWORK_PARTITION_DETECTION;
+  }
 
-  default boolean isUDPSecurityEnabled() { return ! getSecurityUDPDHAlgo().isEmpty(); }
+  default boolean isUDPSecurityEnabled() {
+    return !getSecurityUDPDHAlgo().isEmpty();
+  }
 
-  default boolean areLocatorsPreferredAsCoordinators() { return isNetworkPartitionDetectionEnabled(); }
+  default boolean areLocatorsPreferredAsCoordinators() {
+    return isNetworkPartitionDetectionEnabled();
+  }
 
-  default String getSecurityUDPDHAlgo() { return DEFAULT_SECURITY_UDP_DHALGO; }
+  default String getSecurityUDPDHAlgo() {
+    return DEFAULT_SECURITY_UDP_DHALGO;
+  }
 
-  default int getMcastPort() { return DEFAULT_MCAST_PORT; }
+  default int getMcastPort() {
+    return DEFAULT_MCAST_PORT;
+  }
 
-  default String getLocators() { return DEFAULT_LOCATORS; }
+  default String getLocators() {
+    return DEFAULT_LOCATORS;
+  }
 
-  default String getStartLocator() { return DEFAULT_START_LOCATOR; }
+  default String getStartLocator() {
+    return DEFAULT_START_LOCATOR;
+  }
 
-  default String getBindAddress() { return DEFAULT_BIND_ADDRESS; };
+  default String getBindAddress() {
+    return DEFAULT_BIND_ADDRESS;
+  };
 
-  default String getSecurityPeerAuthInit() {return DEFAULT_SECURITY_PEER_AUTH_INIT; }
+  default String getSecurityPeerAuthInit() {
+    return DEFAULT_SECURITY_PEER_AUTH_INIT;
+  }
 
-  default boolean getDisableTcp() { return DEFAULT_DISABLE_TCP; }
+  default boolean getDisableTcp() {
+    return DEFAULT_DISABLE_TCP;
+  }
 
-  default String getName() { return DEFAULT_NAME; }
+  default String getName() {
+    return DEFAULT_NAME;
+  }
 
-  default String getRoles() { return DEFAULT_ROLES; }
+  default String getRoles() {
+    return DEFAULT_ROLES;
+  }
 
-  default String getGroups() { return DEFAULT_GROUPS; }
+  default String getGroups() {
+    return DEFAULT_GROUPS;
+  }
 
-  default String getDurableClientId() { return DEFAULT_DURABLE_CLIENT_ID; }
+  default String getDurableClientId() {
+    return DEFAULT_DURABLE_CLIENT_ID;
+  }
 
-  default int getDurableClientTimeout() { return DEFAULT_DURABLE_CLIENT_TIMEOUT; }
+  default int getDurableClientTimeout() {
+    return DEFAULT_DURABLE_CLIENT_TIMEOUT;
+  }
 
-  default String getMcastAddress() { return DEFAULT_MCAST_ADDRESS; }
+  default String getMcastAddress() {
+    return DEFAULT_MCAST_ADDRESS;
+  }
 
-  default int getMcastTtl() { return DEFAULT_MCAST_TTL; }
+  default int getMcastTtl() {
+    return DEFAULT_MCAST_TTL;
+  }
 
-  default int getMcastSendBufferSize() { return DEFAULT_MCAST_SEND_BUFFER_SIZE; }
+  default int getMcastSendBufferSize() {
+    return DEFAULT_MCAST_SEND_BUFFER_SIZE;
+  }
 
-  default int getMcastRecvBufferSize() { return DEFAULT_MCAST_RECV_BUFFER_SIZE; }
+  default int getMcastRecvBufferSize() {
+    return DEFAULT_MCAST_RECV_BUFFER_SIZE;
+  }
 
-  default int getUdpFragmentSize() { return DEFAULT_UDP_FRAGMENT_SIZE; }
+  default int getUdpFragmentSize() {
+    return DEFAULT_UDP_FRAGMENT_SIZE;
+  }
 
-  default int getUdpRecvBufferSize() { return DEFAULT_UDP_RECV_BUFFER_SIZE; }
+  default int getUdpRecvBufferSize() {
+    return DEFAULT_UDP_RECV_BUFFER_SIZE;
+  }
 
-  default int getUdpSendBufferSize() { return DEFAULT_UDP_SEND_BUFFER_SIZE; }
+  default int getUdpSendBufferSize() {
+    return DEFAULT_UDP_SEND_BUFFER_SIZE;
+  }
 
-  default int getMcastByteAllowance() { return DEFAULT_MCAST_BYTE_ALLOWANCE; }
+  default int getMcastByteAllowance() {
+    return DEFAULT_MCAST_BYTE_ALLOWANCE;
+  }
 
-  default float getMcastRechargeThreshold() { return DEFAULT_MCAST_RECHARGE_THRESHOLD;}
+  default float getMcastRechargeThreshold() {
+    return DEFAULT_MCAST_RECHARGE_THRESHOLD;
+  }
 
-  default int getMcastRechargeBlockMs() { return DEFAULT_MCAST_RECHARGE_BLOCKING_MS; }
+  default int getMcastRechargeBlockMs() {
+    return DEFAULT_MCAST_RECHARGE_BLOCKING_MS;
+  }
 
-  default long getAckWaitThreshold() { return DEFAULT_ACK_WAIT_THRESHOLD; }
+  default long getAckWaitThreshold() {
+    return DEFAULT_ACK_WAIT_THRESHOLD;
+  }
 
-  default boolean getDisableAutoReconnect() { return DEFAULT_DISABLE_AUTO_RECONNECT; }
+  default boolean getDisableAutoReconnect() {
+    return DEFAULT_DISABLE_AUTO_RECONNECT;
+  }
 
-  default int getSecurityPeerMembershipTimeout() { return DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT; }
+  default int getSecurityPeerMembershipTimeout() {
+    return DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT;
+  }
 
-  default long getAckSevereAlertThreshold() { return DEFAULT_ACK_SEVERE_ALERT_THRESHOLD; }
+  default long getAckSevereAlertThreshold() {
+    return DEFAULT_ACK_SEVERE_ALERT_THRESHOLD;
+  }
 
-  default int getVmKind() { return MemberIdentifier.NORMAL_DM_TYPE; }
+  default int getVmKind() {
+    return MemberIdentifier.NORMAL_DM_TYPE;
+  }
 
-  default Object getOldDSMembershipInfo() { return DEFAULT_OLD_MEMBERSHIP_INFO; }
+  default Object getOldDSMembershipInfo() {
+    return DEFAULT_OLD_MEMBERSHIP_INFO;
+  }
 
-  default boolean getIsReconnectingDS() { return DEFAULT_IS_RECONNECTING_DS; }
+  default boolean getIsReconnectingDS() {
+    return DEFAULT_IS_RECONNECTING_DS;
+  }
 }

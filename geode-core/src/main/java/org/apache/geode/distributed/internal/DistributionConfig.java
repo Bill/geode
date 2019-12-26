@@ -1481,7 +1481,8 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
    */
   @Immutable
   FlowControlParams DEFAULT_MCAST_FLOW_CONTROL = new FlowControlParams(
-      MembershipConfig.DEFAULT_MCAST_BYTE_ALLOWANCE, MembershipConfig.DEFAULT_MCAST_RECHARGE_THRESHOLD,
+      MembershipConfig.DEFAULT_MCAST_BYTE_ALLOWANCE,
+      MembershipConfig.DEFAULT_MCAST_RECHARGE_THRESHOLD,
       MembershipConfig.DEFAULT_MCAST_RECHARGE_BLOCKING_MS);
 
   /**
@@ -2596,7 +2597,8 @@ public interface DistributionConfig extends Config, LogConfig, StatisticsConfig 
   /**
    * The default peer membership check timeout is 1 second.
    */
-  int DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT = MembershipConfig.DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT;
+  int DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT =
+      MembershipConfig.DEFAULT_SECURITY_PEER_VERIFYMEMBER_TIMEOUT;
 
 
   /**
