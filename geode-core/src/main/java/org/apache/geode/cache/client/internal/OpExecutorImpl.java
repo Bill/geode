@@ -644,6 +644,7 @@ public class OpExecutorImpl implements ExecutablePool {
     if (title != null) {
       conn.destroy();
       if (invalidateServer) {
+        logger.debug("BGB: OpExecutorImpl.handleException(e), e=", e);
         endpointManager.serverCrashed(conn.getEndpoint());
       }
       boolean logEnabled = warn ? logger.isWarnEnabled() : logger.isDebugEnabled();
